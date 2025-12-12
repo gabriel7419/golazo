@@ -2,6 +2,7 @@
 package app
 
 import (
+	"github.com/0xjuanma/golazo/internal/api"
 	"github.com/0xjuanma/golazo/internal/data"
 	"github.com/0xjuanma/golazo/internal/ui"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,11 +16,12 @@ const (
 )
 
 type model struct {
-	width       int
-	height      int
-	currentView view
-	matches     []ui.MatchDisplay
-	selected    int
+	width        int
+	height       int
+	currentView  view
+	matches      []ui.MatchDisplay
+	selected     int
+	matchDetails *api.MatchDetails
 }
 
 // NewModel creates a new application model with default values.
@@ -48,6 +50,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.currentView != viewMain {
 				m.currentView = viewMain
 				m.selected = 0
+				m.matchDetails = nil
 				return m, nil
 			}
 		}
@@ -98,6 +101,14 @@ func (m model) handleMainViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.matches = displayMatches
 			m.currentView = viewLiveMatches
 			m.selected = 0
+
+			// Load details for first match if available
+			if len(m.matches) > 0 {
+				if details, err := data.MockMatchDetails(m.matches[0].ID); err == nil {
+					m.matchDetails = details
+				}
+			}
+
 			return m, nil
 		}
 		// Favourites does nothing for now
@@ -111,11 +122,23 @@ func (m model) handleLiveMatchesKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "j", "down":
 		if m.selected < len(m.matches)-1 {
 			m.selected++
+			// Load details for newly selected match
+			if m.selected < len(m.matches) {
+				if details, err := data.MockMatchDetails(m.matches[m.selected].ID); err == nil {
+					m.matchDetails = details
+				}
+			}
 		}
 		return m, nil
 	case "k", "up":
 		if m.selected > 0 {
 			m.selected--
+			// Load details for newly selected match
+			if m.selected >= 0 && m.selected < len(m.matches) {
+				if details, err := data.MockMatchDetails(m.matches[m.selected].ID); err == nil {
+					m.matchDetails = details
+				}
+			}
 		}
 		return m, nil
 	}
@@ -127,7 +150,7 @@ func (m model) View() string {
 	case viewMain:
 		return ui.RenderMainMenu(m.width, m.height, m.selected)
 	case viewLiveMatches:
-		return ui.RenderLiveMatches(m.width, m.height, m.matches, m.selected)
+		return ui.RenderMultiPanelView(m.width, m.height, m.matches, m.selected, m.matchDetails)
 	default:
 		return ui.RenderMainMenu(m.width, m.height, m.selected)
 	}
