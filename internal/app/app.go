@@ -242,8 +242,10 @@ func fetchLiveMatches(client *fotmob.Client) tea.Cmd {
 
 		matches, err := client.LiveMatches(ctx)
 		if err != nil {
-			// Fallback to mock data on error
-			matches, _ = data.MockMatches()
+			// Log error for debugging - in production you might want to use a logger
+			// For now, return empty matches - will show empty state
+			// The error details are in the API client error message
+			matches = []api.Match{}
 		}
 
 		return liveMatchesMsg{matches: matches}

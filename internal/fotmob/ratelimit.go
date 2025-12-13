@@ -38,4 +38,3 @@ func (rl *RateLimiter) Wait() {
 
 	rl.lastRequestTime = time.Now()
 }
-

@@ -65,16 +65,16 @@ func (c *Client) BatchMatchDetails(ctx context.Context, matchIDs []int) (map[int
 		wg.Add(1)
 		go func(id int, index int) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore (limits concurrent requests)
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			
+
 			// Stagger requests slightly to be more conservative
 			if index > 0 {
 				time.Sleep(time.Duration(index) * 500 * time.Millisecond)
 			}
-			
+
 			details, err := c.MatchDetails(ctx, id)
 			results <- result{
 				matchID: id,

@@ -130,13 +130,36 @@ func renderMatchesListPanel(width, height int, matches []MatchDisplay, selected 
 	contentWidth := width - 6 // Account for border and padding
 
 	if len(matches) == 0 {
-		emptyStyle := lipgloss.NewStyle().
+		// Nice empty state with icon and helpful message
+		emptyIcon := lipgloss.NewStyle().
+			Foreground(accentColor).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(contentWidth).
+			PaddingTop(2).
+			Render("⚽")
+
+		emptyMessage := lipgloss.NewStyle().
+			Foreground(textColor).
+			Align(lipgloss.Center).
+			Width(contentWidth).
+			PaddingTop(1).
+			Render("No live matches")
+
+		emptySubtext := lipgloss.NewStyle().
 			Foreground(dimColor).
 			Italic(true).
-			Padding(2, 0).
 			Align(lipgloss.Center).
-			Width(contentWidth)
-		items = append(items, emptyStyle.Render("No matches available"))
+			Width(contentWidth).
+			PaddingTop(1).
+			Render("Check back later for live action")
+
+		items = append(items, lipgloss.JoinVertical(
+			lipgloss.Center,
+			emptyIcon,
+			emptyMessage,
+			emptySubtext,
+		))
 	} else {
 		for i, match := range matches {
 			item := renderMatchListItem(match, i == selected, contentWidth)
@@ -239,13 +262,30 @@ func renderMatchListItem(match MatchDisplay, selected bool, width int) string {
 func renderMatchDetailsPanel(width, height int, details *api.MatchDetails, liveUpdates []string, sp spinner.Model, loading bool) string {
 	if details == nil {
 		title := panelTitleStyle.Width(width - 6).Render("Match Details")
-		emptyStyle := lipgloss.NewStyle().
+
+		// Nice empty state for match details
+		emptyIcon := lipgloss.NewStyle().
+			Foreground(accentColor).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(width - 6).
+			PaddingTop(2).
+			Render("📊")
+
+		emptyMessage := lipgloss.NewStyle().
+			Foreground(textColor).
+			Align(lipgloss.Center).
+			Width(width - 6).
+			PaddingTop(1).
+			Render("Select a match")
+
+		emptySubtext := lipgloss.NewStyle().
 			Foreground(dimColor).
 			Italic(true).
-			Padding(2, 0).
 			Align(lipgloss.Center).
-			Width(width - 6)
-		content := emptyStyle.Render("Select a match to view details")
+			Width(width - 6).
+			PaddingTop(1).
+			Render("to view live updates and details")
 
 		return panelStyle.
 			Width(width).
@@ -254,7 +294,12 @@ func renderMatchDetailsPanel(width, height int, details *api.MatchDetails, liveU
 				lipgloss.Left,
 				title,
 				"",
-				content,
+				lipgloss.JoinVertical(
+					lipgloss.Center,
+					emptyIcon,
+					emptyMessage,
+					emptySubtext,
+				),
 			))
 	}
 
