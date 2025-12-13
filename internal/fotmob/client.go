@@ -18,20 +18,26 @@ const (
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
+	rateLimiter *RateLimiter
 }
 
 // NewClient creates a new FotMob API client with default configuration.
+// Includes conservative rate limiting (2 seconds between requests).
 func NewClient() *Client {
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		baseURL: baseURL,
+		baseURL:     baseURL,
+		rateLimiter: NewRateLimiter(2 * time.Second), // Conservative: 2 seconds between requests
 	}
 }
 
 // MatchesByDate retrieves all matches for a specific date.
 func (c *Client) MatchesByDate(ctx context.Context, date time.Time) ([]api.Match, error) {
+	// Apply rate limiting
+	c.rateLimiter.Wait()
+
 	dateStr := date.Format("20060102")
 	url := fmt.Sprintf("%s/matches?date=%s", c.baseURL, dateStr)
 
@@ -70,6 +76,9 @@ func (c *Client) MatchesByDate(ctx context.Context, date time.Time) ([]api.Match
 
 // MatchDetails retrieves detailed information about a specific match.
 func (c *Client) MatchDetails(ctx context.Context, matchID int) (*api.MatchDetails, error) {
+	// Apply rate limiting
+	c.rateLimiter.Wait()
+
 	url := fmt.Sprintf("%s/matchDetails?matchId=%d", c.baseURL, matchID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -116,6 +125,9 @@ func (c *Client) LeagueMatches(ctx context.Context, leagueID int) ([]api.Match, 
 
 // LeagueTable retrieves the league table/standings for a specific league.
 func (c *Client) LeagueTable(ctx context.Context, leagueID int) ([]api.LeagueTableEntry, error) {
+	// Apply rate limiting
+	c.rateLimiter.Wait()
+
 	url := fmt.Sprintf("%s/leagues?id=%d", c.baseURL, leagueID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
