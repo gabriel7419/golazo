@@ -191,4 +191,3 @@ func (p *LiveUpdateParser) GetNewEvents(oldEvents, newEvents []api.MatchEvent) [
 
 	return newOnly
 }
-
