@@ -11,6 +11,7 @@ import (
 
 // LiveMatches retrieves all currently live matches.
 // This fetches today's matches and filters for live ones.
+// Conservative: Only fetches once, caller should cache results.
 func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
 	today := time.Now()
 	matches, err := c.MatchesByDate(ctx, today)
@@ -26,7 +27,7 @@ func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
 		}
 	}
 
-	// Limit to 10 matches
+	// Limit to 10 matches to be conservative
 	if len(liveMatches) > 10 {
 		liveMatches = liveMatches[:10]
 	}
@@ -36,9 +37,16 @@ func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
 
 // BatchMatchDetails fetches details for multiple matches concurrently.
 // This is more efficient than fetching them sequentially.
+// Uses conservative rate limiting with staggered requests.
 func (c *Client) BatchMatchDetails(ctx context.Context, matchIDs []int) (map[int]*api.MatchDetails, error) {
 	if len(matchIDs) == 0 {
 		return make(map[int]*api.MatchDetails), nil
+	}
+
+	// Limit concurrent requests to be conservative (max 3 at a time)
+	maxConcurrent := 3
+	if len(matchIDs) < maxConcurrent {
+		maxConcurrent = len(matchIDs)
 	}
 
 	// Use a channel to collect results
@@ -49,20 +57,31 @@ func (c *Client) BatchMatchDetails(ctx context.Context, matchIDs []int) (map[int
 	}
 
 	results := make(chan result, len(matchIDs))
+	semaphore := make(chan struct{}, maxConcurrent) // Limit concurrency
 	var wg sync.WaitGroup
 
-	// Fetch each match detail concurrently
-	for _, matchID := range matchIDs {
+	// Fetch each match detail with rate limiting
+	for i, matchID := range matchIDs {
 		wg.Add(1)
-		go func(id int) {
+		go func(id int, index int) {
 			defer wg.Done()
+			
+			// Acquire semaphore (limits concurrent requests)
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+			
+			// Stagger requests slightly to be more conservative
+			if index > 0 {
+				time.Sleep(time.Duration(index) * 500 * time.Millisecond)
+			}
+			
 			details, err := c.MatchDetails(ctx, id)
 			results <- result{
 				matchID: id,
 				details: details,
 				err:     err,
 			}
-		}(matchID)
+		}(matchID, i)
 	}
 
 	// Close results channel when all goroutines complete
