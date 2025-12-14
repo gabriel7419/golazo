@@ -71,9 +71,16 @@ func (m fotmobMatch) toAPIMatch() api.Match {
 		Round: m.Round,
 	}
 
-	// Parse match time
+	// Parse match time - FotMob uses .000Z format sometimes
 	if m.Status.UTCTime != "" {
-		if t, err := time.Parse(time.RFC3339, m.Status.UTCTime); err == nil {
+		var t time.Time
+		var err error
+		t, err = time.Parse(time.RFC3339, m.Status.UTCTime)
+		if err != nil {
+			// Try alternative format with milliseconds
+			t, err = time.Parse("2006-01-02T15:04:05.000Z", m.Status.UTCTime)
+		}
+		if err == nil {
 			match.MatchTime = &t
 		}
 	}
