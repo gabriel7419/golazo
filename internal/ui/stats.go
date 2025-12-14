@@ -191,7 +191,7 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 	// Status
 	statusText := "Finished"
 	statusDisplay := lipgloss.NewStyle().
-		Foreground(liveColor).
+		Foreground(secondaryColor).
 		Bold(true).
 		Render("Status: " + statusText)
 	stats = append(stats, statusDisplay)
@@ -214,12 +214,12 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 			summary := make([]string, 0)
 			if goals > 0 {
 				summary = append(summary, lipgloss.NewStyle().
-					Foreground(goalColor).
+					Foreground(secondaryColor).
 					Render(fmt.Sprintf("Goals: %d", goals)))
 			}
 			if cards > 0 {
 				summary = append(summary, lipgloss.NewStyle().
-					Foreground(cardColor).
+					Foreground(secondaryColor).
 					Render(fmt.Sprintf("Cards: %d", cards)))
 			}
 			stats = append(stats, strings.Join(summary, " | "))

@@ -50,7 +50,7 @@ var (
 			Padding(0, 0)
 
 	matchStatusStyle = lipgloss.NewStyle().
-				Foreground(liveColor).
+				Foreground(secondaryColor).
 				Bold(true)
 
 	// Event styles - elegant and readable
@@ -66,11 +66,11 @@ var (
 			MarginLeft(0)
 
 	eventGoalStyle = lipgloss.NewStyle().
-			Foreground(goalColor).
+			Foreground(secondaryColor).
 			Bold(true)
 
 	eventCardStyle = lipgloss.NewStyle().
-			Foreground(cardColor).
+			Foreground(secondaryColor).
 			Bold(true)
 
 	// Live update styles
