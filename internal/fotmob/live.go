@@ -3,6 +3,7 @@ package fotmob
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -133,7 +134,7 @@ func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam 
 		}
 	}
 
-	switch event.Type {
+	switch strings.ToLower(event.Type) {
 	case "goal":
 		player := "Unknown"
 		if event.Player != nil {
