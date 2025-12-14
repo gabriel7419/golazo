@@ -35,35 +35,35 @@ func MockMatchDetails(matchID int) (*api.MatchDetails, error) {
 	}, nil
 }
 
-// generateMockEvents generates mock events for a match.
+// generateMockEvents generates mock events for a live match.
 func generateMockEvents(matchID int, match api.Match) []api.MatchEvent {
 	events := []api.MatchEvent{}
 
 	switch matchID {
-	case 1: // Man Utd vs Liverpool
+	case 2001: // Chelsea 2-1 Spurs (Live)
 		events = []api.MatchEvent{
-			{ID: 1, Minute: 12, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Rashford"), Timestamp: time.Now()},
-			{ID: 2, Minute: 34, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Salah"), Timestamp: time.Now()},
-			{ID: 3, Minute: 45, Type: "card", Team: match.HomeTeam, Player: stringPtr("Casemiro"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 4, Minute: 56, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Fernandes"), Assist: stringPtr("Rashford"), Timestamp: time.Now()},
+			{ID: 1, Minute: 12, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Palmer"), Timestamp: time.Now()},
+			{ID: 2, Minute: 34, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Son"), Timestamp: time.Now()},
+			{ID: 3, Minute: 45, Type: "card", Team: match.AwayTeam, Player: stringPtr("Romero"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 4, Minute: 56, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Jackson"), Assist: stringPtr("Palmer"), Timestamp: time.Now()},
 		}
-	case 2: // Real Madrid vs Barcelona
+	case 2002: // Real Madrid 1-0 Atletico (Live)
 		events = []api.MatchEvent{
-			{ID: 5, Minute: 8, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Lewandowski"), Timestamp: time.Now()},
-			{ID: 6, Minute: 23, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Vinicius Jr"), Timestamp: time.Now()},
+			{ID: 5, Minute: 18, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Bellingham"), Timestamp: time.Now()},
+			{ID: 6, Minute: 28, Type: "card", Team: match.AwayTeam, Player: stringPtr("Savic"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
 		}
-	case 3: // AC Milan vs Inter
+	case 2003: // Leipzig 0-0 Dortmund (Live)
 		events = []api.MatchEvent{
-			{ID: 7, Minute: 5, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Leao"), Timestamp: time.Now()},
-			{ID: 8, Minute: 18, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Martinez"), Timestamp: time.Now()},
-			{ID: 9, Minute: 32, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Giroud"), Timestamp: time.Now()},
-			{ID: 10, Minute: 45, Type: "card", Team: match.AwayTeam, Player: stringPtr("Barella"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 11, Minute: 67, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Lautaro"), Timestamp: time.Now()},
-			{ID: 12, Minute: 78, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Pulisic"), Timestamp: time.Now()},
-			{ID: 13, Minute: 89, Type: "card", Team: match.HomeTeam, Player: stringPtr("Theo"), EventType: stringPtr("red"), Timestamp: time.Now()},
+			{ID: 7, Minute: 15, Type: "card", Team: match.HomeTeam, Player: stringPtr("Simakan"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
 		}
-	case 4: // Arsenal vs Chelsea (not started)
-		events = []api.MatchEvent{}
+	case 2004: // Juventus 2-2 AC Milan (Live)
+		events = []api.MatchEvent{
+			{ID: 8, Minute: 8, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Vlahovic"), Timestamp: time.Now()},
+			{ID: 9, Minute: 23, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Leao"), Timestamp: time.Now()},
+			{ID: 10, Minute: 45, Type: "card", Team: match.HomeTeam, Player: stringPtr("Locatelli"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 11, Minute: 56, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Chiesa"), Timestamp: time.Now()},
+			{ID: 12, Minute: 67, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Giroud"), Assist: stringPtr("Pulisic"), Timestamp: time.Now()},
+		}
 	}
 
 	return events
