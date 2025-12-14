@@ -103,5 +103,74 @@ func MockLiveMatches() []api.Match {
 			MatchTime: &now,
 			Round:     "Matchday 16",
 		},
+		{
+			ID: 2005,
+			League: api.League{
+				ID:   2,
+				Name: "UEFA Champions League",
+			},
+			HomeTeam: api.Team{
+				ID:        50,
+				Name:      "Manchester City",
+				ShortName: "Man City",
+			},
+			AwayTeam: api.Team{
+				ID:        157,
+				Name:      "Bayern Munich",
+				ShortName: "Bayern",
+			},
+			Status:    api.MatchStatusLive,
+			HomeScore: intPtr(3),
+			AwayScore: intPtr(1),
+			LiveTime:  stringPtr("56'"),
+			MatchTime: &now,
+			Round:     "Round of 16",
+		},
+		{
+			ID: 2006,
+			League: api.League{
+				ID:   39,
+				Name: "Premier League",
+			},
+			HomeTeam: api.Team{
+				ID:        33,
+				Name:      "Manchester United",
+				ShortName: "Man Utd",
+			},
+			AwayTeam: api.Team{
+				ID:        40,
+				Name:      "Liverpool",
+				ShortName: "Liverpool",
+			},
+			Status:    api.MatchStatusLive,
+			HomeScore: intPtr(1),
+			AwayScore: intPtr(1),
+			LiveTime:  stringPtr("45'"),
+			MatchTime: &now,
+			Round:     "Matchday 17",
+		},
+		{
+			ID: 2007,
+			League: api.League{
+				ID:   253,
+				Name: "MLS",
+			},
+			HomeTeam: api.Team{
+				ID:        2285,
+				Name:      "LA Galaxy",
+				ShortName: "LA Galaxy",
+			},
+			AwayTeam: api.Team{
+				ID:        2286,
+				Name:      "Inter Miami",
+				ShortName: "Inter Miami",
+			},
+			Status:    api.MatchStatusLive,
+			HomeScore: intPtr(2),
+			AwayScore: intPtr(0),
+			LiveTime:  stringPtr("12'"),
+			MatchTime: &now,
+			Round:     "Matchday 8",
+		},
 	}
 }
