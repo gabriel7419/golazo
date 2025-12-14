@@ -113,7 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			h, v := 2, 2 // Approximate frame size
 			titleHeight := 3
-			spinnerHeight := 2
+			spinnerHeight := 3 // Reserved space at top for spinner
 			availableWidth := leftWidth - h*2
 			availableHeight := m.height - v*2 - titleHeight - spinnerHeight
 			if availableWidth > 0 && availableHeight > 0 {
@@ -126,7 +126,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			h, v := 2, 2
 			titleHeight := 3
-			spinnerHeight := 2
+			spinnerHeight := 3 // Reserved space at top for spinner
 			availableWidth := leftWidth - h*2
 			availableHeight := m.height - v*2 - titleHeight - spinnerHeight
 			if availableWidth > 0 && availableHeight > 0 {
@@ -259,7 +259,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = false
 			return m, nil
 		}
-		m.liveViewLoading = false
+		// Keep loading state true until match details are loaded
 		// Convert to display format
 		displayMatches := make([]ui.MatchDisplay, 0, len(msg.matches))
 		for _, match := range msg.matches {
@@ -271,28 +271,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.matches = displayMatches
 		m.selected = 0
 		m.loading = false
+		// Keep liveViewLoading true to show spinner while loading match details
+		// Re-initialize spinner to ensure it's animating
+		cmds = append(cmds, m.randomSpinner.Init())
 
 		// Update list with items
 		items := ui.ToMatchListItems(displayMatches)
 		m.liveMatchesList.SetItems(items)
 
 		// Set list size based on current window dimensions
-		// Account for spinner height at top
-		spinnerHeight := 2
-		if m.width > 0 && m.height > 0 {
-			leftWidth := m.width * 35 / 100
-			if leftWidth < 25 {
-				leftWidth = 25
-			}
-			// Approximate frame size (border + padding)
-			frameWidth := 4
-			frameHeight := 6
-			titleHeight := 3
-			availableWidth := leftWidth - frameWidth
-			availableHeight := m.height - frameHeight - titleHeight - spinnerHeight
-			if availableWidth > 0 && availableHeight > 0 {
-				m.liveMatchesList.SetSize(availableWidth, availableHeight)
-			}
+		// Account for spinner height at top (3 lines reserved)
+		// Use default size if window size not set yet
+		spinnerHeight := 3
+		leftWidth := m.width * 35 / 100
+		if leftWidth < 25 {
+			leftWidth = 25
+		}
+		if m.width == 0 {
+			leftWidth = 40 // Default width if window size not set
+		}
+		// Approximate frame size (border + padding)
+		frameWidth := 4
+		frameHeight := 6
+		titleHeight := 3
+		availableWidth := leftWidth - frameWidth
+		availableHeight := m.height - frameHeight - titleHeight - spinnerHeight
+		if m.height == 0 {
+			availableHeight = 20 // Default height if window size not set
+		}
+		if availableWidth > 0 && availableHeight > 0 {
+			m.liveMatchesList.SetSize(availableWidth, availableHeight)
 		}
 
 		if len(displayMatches) > 0 {
@@ -300,11 +308,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Load details for first match if available
+		// This will set liveViewLoading = true again and initialize spinner
 		if len(m.matches) > 0 {
-			return m.loadMatchDetails(m.matches[0].ID)
+			var loadCmd tea.Cmd
+			var updatedModel tea.Model
+			updatedModel, loadCmd = m.loadMatchDetails(m.matches[0].ID)
+			if updatedM, ok := updatedModel.(model); ok {
+				m = updatedM
+			}
+			cmds = append(cmds, loadCmd)
+			return m, tea.Batch(cmds...)
 		}
 
-		return m, nil
+		// If no matches to load details for, stop loading
+		m.liveViewLoading = false
+		return m, tea.Batch(cmds...)
 	case finishedMatchesMsg:
 		m.statsViewLoading = false
 		// Convert to display format
@@ -376,6 +394,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = true
 			m.liveViewLoading = true
 			return m, tea.Batch(m.spinner.Tick, m.randomSpinner.Init(), fetchLiveMatches(m.fotmobClient, m.useMockData))
+		}
+		return m, nil
+	default:
+		// Handle RandomCharSpinner TickMsg (from random_spinner.go)
+		// This catches ui.TickMsg if the case above doesn't match for some reason
+		if _, ok := msg.(ui.TickMsg); ok {
+			if m.mainViewLoading || m.liveViewLoading || m.statsViewLoading {
+				var cmd tea.Cmd
+				var model tea.Model
+				model, cmd = m.randomSpinner.Update(msg)
+				if spinner, ok := model.(*ui.RandomCharSpinner); ok {
+					m.randomSpinner = spinner
+				}
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+				return m, tea.Batch(cmds...)
+			}
 		}
 		return m, nil
 	}
@@ -481,8 +517,38 @@ func (m model) View() string {
 	case viewMain:
 		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading)
 	case viewLiveMatches:
+		// Ensure list size is set before rendering (in case window size changed or wasn't set)
+		if m.width > 0 && m.height > 0 {
+			leftWidth := m.width * 35 / 100
+			if leftWidth < 25 {
+				leftWidth = 25
+			}
+			h, v := 2, 2
+			titleHeight := 3
+			spinnerHeight := 3
+			availableWidth := leftWidth - h*2
+			availableHeight := m.height - v*2 - titleHeight - spinnerHeight
+			if availableWidth > 0 && availableHeight > 0 {
+				m.liveMatchesList.SetSize(availableWidth, availableHeight)
+			}
+		}
 		return ui.RenderMultiPanelViewWithList(m.width, m.height, m.liveMatchesList, m.matchDetails, m.liveUpdates, m.spinner, m.loading, m.randomSpinner, m.liveViewLoading)
 	case viewStats:
+		// Ensure list size is set before rendering (in case window size changed or wasn't set)
+		if m.width > 0 && m.height > 0 {
+			leftWidth := m.width * 40 / 100
+			if leftWidth < 30 {
+				leftWidth = 30
+			}
+			h, v := 2, 2
+			titleHeight := 3
+			spinnerHeight := 3
+			availableWidth := leftWidth - h*2
+			availableHeight := m.height - v*2 - titleHeight - spinnerHeight
+			if availableWidth > 0 && availableHeight > 0 {
+				m.statsMatchesList.SetSize(availableWidth, availableHeight)
+			}
+		}
 		return ui.RenderStatsViewWithList(m.width, m.height, m.statsMatchesList, m.matchDetails, m.randomSpinner, m.statsViewLoading)
 	default:
 		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading)
