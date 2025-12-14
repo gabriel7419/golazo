@@ -32,15 +32,21 @@ func main() {
 	url1 := fmt.Sprintf("%s/fixtures?date=%s", baseURL, today)
 	testEndpoint(url1, apiKey)
 
-	// Test 2: Get fixtures with date range (last 7 days)
-	fmt.Println("\nTest 2: Fetching fixtures from last 7 days...")
+	// Test 2: Get fixtures with date range (last 7 days) - NOTE: This doesn't work, see Test 2b
+	fmt.Println("\nTest 2: Fetching fixtures from last 7 days (from/to - may not work)...")
 	dateFrom := time.Now().AddDate(0, 0, -7).Format("2006-01-02")
 	dateTo := time.Now().Format("2006-01-02")
 	url2 := fmt.Sprintf("%s/fixtures?from=%s&to=%s", baseURL, dateFrom, dateTo)
 	testEndpoint(url2, apiKey)
 
-	// Test 3: Get finished matches only
-	fmt.Println("\nTest 3: Fetching finished matches from last 7 days...")
+	// Test 2b: Get fixtures by querying yesterday individually (this works)
+	fmt.Println("\nTest 2b: Fetching fixtures for yesterday (single date - this works)...")
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	url2b := fmt.Sprintf("%s/fixtures?date=%s&status=FT", baseURL, yesterday)
+	testEndpoint(url2b, apiKey)
+
+	// Test 3: Get finished matches only (from/to - may not work)
+	fmt.Println("\nTest 3: Fetching finished matches from last 7 days (from/to - may not work)...")
 	url3 := fmt.Sprintf("%s/fixtures?from=%s&to=%s&status=FT", baseURL, dateFrom, dateTo)
 	testEndpoint(url3, apiKey)
 
@@ -63,7 +69,7 @@ func main() {
 
 func testEndpoint(url string, apiKey string) {
 	fmt.Printf("  URL: %s\n", url)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Printf("  ❌ Failed to create request: %v\n", err)
@@ -85,7 +91,7 @@ func testEndpoint(url string, apiKey string) {
 
 	fmt.Printf("  Status: %d\n", resp.StatusCode)
 	fmt.Printf("  Headers: %+v\n", resp.Header)
-	
+
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("  ❌ Error response: %s\n", bodyStr[:min(1000, len(bodyStr))])
 		return
@@ -101,12 +107,12 @@ func testEndpoint(url string, apiKey string) {
 
 	// Print full response structure for debugging
 	fmt.Printf("  Response keys: %v\n", getKeys(result))
-	
+
 	// Check for errors in response
 	if errors, ok := result["errors"].([]interface{}); ok && len(errors) > 0 {
 		fmt.Printf("  ⚠ API Errors: %+v\n", errors)
 	}
-	
+
 	// Check response structure
 	if response, ok := result["response"].([]interface{}); ok {
 		fmt.Printf("  ✓ Found %d matches\n", len(response))
