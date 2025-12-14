@@ -23,11 +23,11 @@ type RandomCharSpinner struct {
 func NewRandomCharSpinner() *RandomCharSpinner {
 	// Random characters similar to the image: alphanumeric, symbols, special chars
 	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?/~`£€¥")
-	
+
 	// Create neon gradient: cyan to magenta (complementary neon colors)
 	startColor, _ := colorful.Hex("#00FFFF") // Bright cyan (neon accent color)
 	endColor, _ := colorful.Hex("#FF00FF")   // Bright magenta (complementary neon)
-	
+
 	return &RandomCharSpinner{
 		chars:      chars,
 		currentIdx: rand.Intn(len(chars)),
@@ -65,24 +65,24 @@ func (r *RandomCharSpinner) View() string {
 	for i := range spinnerChars {
 		spinnerChars[i] = r.chars[rand.Intn(len(r.chars))]
 	}
-	
+
 	// Apply gradient to each character
 	var result strings.Builder
 	for i, char := range spinnerChars {
 		// Calculate gradient position (0.0 to 1.0)
 		ratio := float64(i) / float64(r.width-1)
-		
+
 		// Blend colors based on position
 		color := r.startColor.BlendLab(r.endColor, ratio)
-		
+
 		// Convert to hex for lipgloss
 		hexColor := color.Hex()
-		
+
 		// Style each character with its gradient color
 		charStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(hexColor))
 		result.WriteString(charStyle.Render(string(char)))
 	}
-	
+
 	return result.String()
 }
 
@@ -101,4 +101,3 @@ func (r *RandomCharSpinner) tick() tea.Cmd {
 		return TickMsg{}
 	})
 }
-
