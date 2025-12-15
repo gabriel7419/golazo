@@ -237,9 +237,13 @@ func renderMatchListItem(match MatchDisplay, selected bool, width int) string {
 
 // renderMatchDetailsPanel renders the right panel with match details and live updates.
 func renderMatchDetailsPanel(width, height int, details *api.MatchDetails, liveUpdates []string, sp spinner.Model, loading bool) string {
-	if details == nil {
-		title := panelTitleStyle.Width(width - 6).Render(constants.PanelMinuteByMinute)
+	return renderMatchDetailsPanelWithTitle(width, height, details, liveUpdates, sp, loading, true)
+}
 
+// renderMatchDetailsPanelWithTitle renders the right panel with optional title.
+// showTitle controls whether to display the "Minute by Minute" title.
+func renderMatchDetailsPanelWithTitle(width, height int, details *api.MatchDetails, liveUpdates []string, sp spinner.Model, loading bool, showTitle bool) string {
+	if details == nil {
 		emptyMessage := lipgloss.NewStyle().
 			Foreground(dimColor).
 			Align(lipgloss.Center).
@@ -247,18 +251,27 @@ func renderMatchDetailsPanel(width, height int, details *api.MatchDetails, liveU
 			PaddingTop(1).
 			Render(constants.EmptySelectMatch)
 
-		return panelStyle.
-			Width(width).
-			Height(height).
-			Render(lipgloss.JoinVertical(
+		content := emptyMessage
+		if showTitle {
+			title := panelTitleStyle.Width(width - 6).Render(constants.PanelMinuteByMinute)
+			content = lipgloss.JoinVertical(
 				lipgloss.Left,
 				title,
 				emptyMessage,
-			))
+			)
+		}
+
+		return panelStyle.
+			Width(width).
+			Height(height).
+			Render(content)
 	}
 
-	// Panel title
-	title := panelTitleStyle.Width(width - 6).Render(constants.PanelMinuteByMinute)
+	// Panel title (only if showTitle is true)
+	var title string
+	if showTitle {
+		title = panelTitleStyle.Width(width - 6).Render(constants.PanelMinuteByMinute)
+	}
 
 	var content strings.Builder
 
@@ -338,14 +351,20 @@ func renderMatchDetailsPanel(width, height int, details *api.MatchDetails, liveU
 		content.WriteString(strings.Join(updatesList, "\n"))
 	}
 
-	panel := panelStyle.
-		Width(width).
-		Height(height).
-		Render(lipgloss.JoinVertical(
+	// Combine title and content (only include title if showTitle is true)
+	panelContent := content.String()
+	if showTitle && title != "" {
+		panelContent = lipgloss.JoinVertical(
 			lipgloss.Left,
 			title,
 			content.String(),
-		))
+		)
+	}
+
+	panel := panelStyle.
+		Width(width).
+		Height(height).
+		Render(panelContent)
 
 	return panel
 }
