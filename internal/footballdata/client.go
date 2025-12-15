@@ -107,6 +107,18 @@ func (c *Client) FinishedMatchesByDateRange(ctx context.Context, dateFrom, dateT
 		}
 		resp.Body.Close()
 
+		// Check for API errors (rate limits, etc.)
+		if len(response.Errors) > 0 {
+			// If we hit rate limit or other errors, return what we have so far
+			// This prevents silently failing and allows partial results
+			if allMatches == nil {
+				allMatches = make([]api.Match, 0)
+			}
+			// Continue to next date - don't break the loop to allow partial results
+			currentDate = currentDate.AddDate(0, 0, 1)
+			continue
+		}
+
 		// Filter for finished matches in supported leagues
 		for _, m := range response.Response {
 			// Check if this match is from a supported league

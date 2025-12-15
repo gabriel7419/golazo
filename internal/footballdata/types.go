@@ -69,6 +69,7 @@ type footballdataMatch struct {
 // footballdataMatchesResponse represents the response from API-Football.com fixtures endpoint
 type footballdataMatchesResponse struct {
 	Response []footballdataMatch `json:"response"`
+	Errors   map[string]string   `json:"errors,omitempty"`
 }
 
 // toAPIMatch converts a footballdataMatch to api.Match
