@@ -10,41 +10,59 @@ import (
 )
 
 // RenderStatsView renders the stats view with finished matches and high-level statistics.
+// Layout: 50% left (matches list), 50% right split vertically (overview top, statistics bottom)
 func RenderStatsView(width, height int, matches []MatchDisplay, selected int, details *api.MatchDetails) string {
 	// Calculate panel dimensions
-	// Left side: 40% width (matches list)
-	// Right side: 60% width (match stats)
-	leftWidth := width * 40 / 100
+	// Left side: 50% width (matches list, full height)
+	// Right side: 50% width (split vertically: overview top, statistics bottom)
+	leftWidth := width * 50 / 100
 	if leftWidth < 30 {
 		leftWidth = 30
 	}
 	rightWidth := width - leftWidth - 1
-	if rightWidth < 40 {
-		rightWidth = 40
+	if rightWidth < 30 {
+		rightWidth = 30
 		leftWidth = width - rightWidth - 1
 	}
 
 	panelHeight := height - 2
+	rightPanelHeight := panelHeight / 2 // Split right panel vertically
 
-	// Render left panel (finished matches list)
+	// Render left panel (finished matches list) - full height
 	leftPanel := renderFinishedMatchesPanel(leftWidth, panelHeight, matches, selected)
 
-	// Render right panel (match stats)
-	rightPanel := renderMatchStatsPanel(rightWidth, panelHeight, details)
+	// Render right panels (overview top, statistics bottom)
+	overviewPanel := renderMatchOverviewPanel(rightWidth, rightPanelHeight, details)
+	statisticsPanel := renderMatchStatisticsPanel(rightWidth, rightPanelHeight, details)
 
-	// Create modern neon vertical separator (matching live matches view style)
-	separatorStyle := lipgloss.NewStyle().
+	// Create vertical separator between left and right
+	verticalSeparatorStyle := lipgloss.NewStyle().
 		Foreground(borderColor).
 		Height(panelHeight).
 		Padding(0, 1)
-	separator := separatorStyle.Render("│")
+	verticalSeparator := verticalSeparatorStyle.Render("│")
 
-	// Combine panels horizontally
+	// Create horizontal separator between overview and statistics
+	horizontalSeparatorStyle := lipgloss.NewStyle().
+		Foreground(borderColor).
+		Width(rightWidth).
+		Padding(0, 1)
+	horizontalSeparator := horizontalSeparatorStyle.Render(strings.Repeat("─", rightWidth-2))
+
+	// Combine right panels vertically
+	rightPanels := lipgloss.JoinVertical(
+		lipgloss.Left,
+		overviewPanel,
+		horizontalSeparator,
+		statisticsPanel,
+	)
+
+	// Combine left and right horizontally
 	combined := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftPanel,
-		separator,
-		rightPanel,
+		verticalSeparator,
+		rightPanels,
 	)
 
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, combined)
@@ -129,9 +147,9 @@ func renderFinishedMatchListItem(match MatchDisplay, selected bool, width int) s
 	return style.Width(width).Render(item)
 }
 
-// renderMatchStatsPanel renders the right panel with high-level match statistics.
-func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string {
-	title := panelTitleStyle.Width(width - 6).Render(constants.PanelMatchStatistics)
+// renderMatchOverviewPanel renders Panel 2: Match Overview & Timeline (right top, 50% height)
+func renderMatchOverviewPanel(width, height int, details *api.MatchDetails) string {
+	title := panelTitleStyle.Width(width - 6).Render("Match Overview")
 
 	if details == nil {
 		emptyStyle := lipgloss.NewStyle().
@@ -156,16 +174,16 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 	}
 
 	contentWidth := width - 6
-	stats := make([]string, 0)
+	content := make([]string, 0)
 
-	// Match header
-	matchHeader := renderMatchHeader(details, contentWidth)
-	stats = append(stats, matchHeader)
+	// Match header with winner indicator
+	header := renderMatchHeaderWithWinner(details, contentWidth)
+	content = append(content, header)
 
-	// Score
+	// Score section
 	if details.HomeScore != nil && details.AwayScore != nil {
 		scoreText := fmt.Sprintf("%d - %d", *details.HomeScore, *details.AwayScore)
-		stats = append(stats, lipgloss.NewStyle().
+		content = append(content, lipgloss.NewStyle().
 			Width(contentWidth).
 			Align(lipgloss.Center).
 			MarginTop(0).
@@ -173,8 +191,26 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 			Render(matchScoreStyle.Render(scoreText)))
 	}
 
-	// League and date
+	// Half-time score
+	if details.HalfTimeScore != nil {
+		htText := "HT: "
+		if details.HalfTimeScore.Home != nil && details.HalfTimeScore.Away != nil {
+			htText += fmt.Sprintf("%d - %d", *details.HalfTimeScore.Home, *details.HalfTimeScore.Away)
+		}
+		content = append(content, lipgloss.NewStyle().
+			Width(contentWidth).
+			Align(lipgloss.Center).
+			Foreground(dimColor).
+			Render(htText))
+	}
+
+	// Match context (venue, league, date)
 	info := make([]string, 0)
+	if details.Venue != "" {
+		info = append(info, lipgloss.NewStyle().
+			Foreground(dimColor).
+			Render("Venue: "+details.Venue))
+	}
 	if details.League.Name != "" {
 		info = append(info, lipgloss.NewStyle().
 			Foreground(dimColor).
@@ -186,66 +222,94 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 			Render(constants.LabelDate+details.MatchTime.Format("Jan 2, 2006")))
 	}
 	if len(info) > 0 {
-		stats = append(stats, strings.Join(info, " | "))
+		content = append(content, strings.Join(info, " | "))
 	}
 
-	// Status
-	statusDisplay := lipgloss.NewStyle().
-		Foreground(secondaryColor).
-		Bold(true).
-		Render(constants.LabelStatus + constants.StatusFinishedText)
-	stats = append(stats, statusDisplay)
+	// Match duration indicator
+	durationText := fmt.Sprintf("%d'", details.MatchDuration)
+	if details.ExtraTime {
+		durationText += " (AET)"
+	}
+	if details.Penalties != nil {
+		if details.Penalties.Home != nil && details.Penalties.Away != nil {
+			durationText += fmt.Sprintf(" (Pens: %d-%d)", *details.Penalties.Home, *details.Penalties.Away)
+		}
+	}
+	content = append(content, lipgloss.NewStyle().
+		Foreground(dimColor).
+		Render(durationText))
 
-	// Events summary
+	// Separator
+	content = append(content, "")
+
+	// Goal timeline
 	if len(details.Events) > 0 {
-		// Count events by type
-		goals := 0
-		cards := 0
+		goals := make([]api.MatchEvent, 0)
 		for _, event := range details.Events {
 			if event.Type == "goal" {
-				goals++
-			} else if event.Type == "card" {
-				cards++
+				goals = append(goals, event)
 			}
 		}
 
-		if goals > 0 || cards > 0 {
-			stats = append(stats, "")
+		if len(goals) > 0 {
+			content = append(content, lipgloss.NewStyle().
+				Foreground(accentColor).
+				Bold(true).
+				Render("Goals Timeline:"))
+			for _, goal := range goals {
+				player := "Unknown"
+				if goal.Player != nil {
+					player = *goal.Player
+				}
+				teamName := goal.Team.ShortName
+				assistText := ""
+				if goal.Assist != nil && *goal.Assist != "" {
+					assistText = fmt.Sprintf(" (assist: %s)", *goal.Assist)
+				}
+				goalText := fmt.Sprintf("%d' %s - %s%s", goal.Minute, teamName, player, assistText)
+				content = append(content, lipgloss.NewStyle().
+					Foreground(secondaryColor).
+					Render(goalText))
+			}
+		}
+
+		// Key events summary
+		goalsCount := 0
+		cardsCount := 0
+		subsCount := 0
+		for _, event := range details.Events {
+			switch event.Type {
+			case "goal":
+				goalsCount++
+			case "card":
+				cardsCount++
+			case "substitution":
+				subsCount++
+			}
+		}
+
+		if goalsCount > 0 || cardsCount > 0 || subsCount > 0 {
+			content = append(content, "")
 			summary := make([]string, 0)
-			if goals > 0 {
-				summary = append(summary, lipgloss.NewStyle().
-					Foreground(secondaryColor).
-					Render(fmt.Sprintf("Goals: %d", goals)))
+			if goalsCount > 0 {
+				summary = append(summary, fmt.Sprintf("Goals: %d", goalsCount))
 			}
-			if cards > 0 {
-				summary = append(summary, lipgloss.NewStyle().
-					Foreground(secondaryColor).
-					Render(fmt.Sprintf("Cards: %d", cards)))
+			if cardsCount > 0 {
+				summary = append(summary, fmt.Sprintf("Cards: %d", cardsCount))
 			}
-			stats = append(stats, strings.Join(summary, " | "))
-		}
-
-		// Show recent events (last 5)
-		recentEvents := details.Events
-		if len(recentEvents) > 5 {
-			recentEvents = recentEvents[len(recentEvents)-5:]
-		}
-
-		if len(recentEvents) > 0 {
-			stats = append(stats, "")
-			for _, event := range recentEvents {
-				eventText := renderStatsEvent(event)
-				stats = append(stats, eventText)
+			if subsCount > 0 {
+				summary = append(summary, fmt.Sprintf("Subs: %d", subsCount))
 			}
+			content = append(content, lipgloss.NewStyle().
+				Foreground(dimColor).
+				Render(strings.Join(summary, " | ")))
 		}
 	}
-
-	content := lipgloss.JoinVertical(lipgloss.Left, stats...)
 
 	panelContent := lipgloss.JoinVertical(
 		lipgloss.Left,
 		title,
-		content,
+		lipgloss.JoinVertical(lipgloss.Left, content...),
 	)
 
 	panel := panelStyle.
@@ -256,42 +320,109 @@ func renderMatchStatsPanel(width, height int, details *api.MatchDetails) string 
 	return panel
 }
 
-// renderMatchHeader renders the match header with team names.
-func renderMatchHeader(details *api.MatchDetails, width int) string {
-	homeTeam := Truncate(details.HomeTeam.ShortName, 20)
-	awayTeam := Truncate(details.AwayTeam.ShortName, 20)
+// renderMatchStatisticsPanel renders Panel 3: Match Statistics & Performance (right bottom, 50% height)
+func renderMatchStatisticsPanel(width, height int, details *api.MatchDetails) string {
+	title := panelTitleStyle.Width(width - 6).Render("Match Statistics")
 
-	header := fmt.Sprintf("%s vs %s", homeTeam, awayTeam)
-	return matchTitleStyle.Width(width).Render(header)
-}
-
-// renderStatsEvent renders a single match event for the stats view.
-func renderStatsEvent(event api.MatchEvent) string {
-	minute := eventMinuteStyle.Render(fmt.Sprintf("%d'", event.Minute))
-
-	eventText := ""
-	switch event.Type {
-	case "goal":
-		player := ""
-		if event.Player != nil {
-			player = *event.Player
-		}
-		teamName := event.Team.ShortName
-		eventText = eventGoalStyle.Render(fmt.Sprintf("Goal: %s - %s", teamName, player))
-	case "card":
-		cardType := "Yellow"
-		if event.EventType != nil && *event.EventType == "red" {
-			cardType = "Red"
-		}
-		player := ""
-		if event.Player != nil {
-			player = *event.Player
-		}
-		teamName := event.Team.ShortName
-		eventText = eventCardStyle.Render(fmt.Sprintf("Card (%s): %s - %s", cardType, teamName, player))
-	default:
-		eventText = eventTextStyle.Render(fmt.Sprintf("%s - %s", event.Team.ShortName, event.Type))
+	if details == nil {
+		emptyStyle := lipgloss.NewStyle().
+			Foreground(dimColor).
+			Padding(1, 0).
+			Align(lipgloss.Center).
+			Width(width - 6)
+		content := lipgloss.JoinVertical(
+			lipgloss.Center,
+			emptyStyle.Render(constants.EmptySelectMatch),
+		)
+		panelContent := lipgloss.JoinVertical(
+			lipgloss.Left,
+			title,
+			content,
+		)
+		panel := panelStyle.
+			Width(width).
+			Height(height).
+			Render(panelContent)
+		return panel
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Left, minute, eventText)
+	stats := make([]string, 0)
+
+	// For now, show placeholder for statistics
+	// Phase 3 will add actual statistics from API
+	stats = append(stats, lipgloss.NewStyle().
+		Foreground(dimColor).
+		Render("Statistics will be displayed here"))
+
+	// Count cards for display (from events)
+	if len(details.Events) > 0 {
+		homeYellow := 0
+		homeRed := 0
+		awayYellow := 0
+		awayRed := 0
+
+		for _, event := range details.Events {
+			if event.Type == "card" {
+				isHome := event.Team.ID == details.HomeTeam.ID
+				if event.EventType != nil {
+					if *event.EventType == "yellow" {
+						if isHome {
+							homeYellow++
+						} else {
+							awayYellow++
+						}
+					} else if *event.EventType == "red" {
+						if isHome {
+							homeRed++
+						} else {
+							awayRed++
+						}
+					}
+				}
+			}
+		}
+
+		if homeYellow > 0 || homeRed > 0 || awayYellow > 0 || awayRed > 0 {
+			stats = append(stats, "")
+			stats = append(stats, lipgloss.NewStyle().
+				Foreground(accentColor).
+				Bold(true).
+				Render("Cards:"))
+			cardsText := fmt.Sprintf("🟨%d 🟥%d ━━━━━━━━━━ 🟨%d 🟥%d",
+				homeYellow, homeRed, awayYellow, awayRed)
+			stats = append(stats, cardsText)
+		}
+	}
+
+	panelContent := lipgloss.JoinVertical(
+		lipgloss.Left,
+		title,
+		lipgloss.JoinVertical(lipgloss.Left, stats...),
+	)
+
+	panel := panelStyle.
+		Width(width).
+		Height(height).
+		Render(panelContent)
+
+	return panel
+}
+
+// renderMatchHeaderWithWinner renders the match header with team names and winner indicator.
+func renderMatchHeaderWithWinner(details *api.MatchDetails, width int) string {
+	homeTeam := Truncate(details.HomeTeam.ShortName, 18)
+	awayTeam := Truncate(details.AwayTeam.ShortName, 18)
+
+	header := fmt.Sprintf("%s vs %s", homeTeam, awayTeam)
+
+	// Add winner indicator
+	if details.Winner != nil {
+		if *details.Winner == "home" {
+			header += " ✓"
+		} else if *details.Winner == "away" {
+			header = "✓ " + header
+		}
+	}
+
+	return matchTitleStyle.Width(width).Render(header)
 }

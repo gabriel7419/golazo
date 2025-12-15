@@ -206,37 +206,56 @@ func RenderStatsViewWithList(width, height int, listModel list.Model, details *a
 	}
 
 	// Calculate panel dimensions
-	leftWidth := width * 40 / 100
+	// Left side: 50% width (matches list, full height)
+	// Right side: 50% width (split vertically: overview top, statistics bottom)
+	leftWidth := width * 50 / 100
 	if leftWidth < 30 {
 		leftWidth = 30
 	}
 	rightWidth := width - leftWidth - 1
-	if rightWidth < 40 {
-		rightWidth = 40
+	if rightWidth < 30 {
+		rightWidth = 30
 		leftWidth = width - rightWidth - 1
 	}
 
 	panelHeight := availableHeight - 2
+	rightPanelHeight := panelHeight / 2 // Split right panel vertically
 
-	// Render left panel (finished matches list) - shifted down
+	// Render left panel (finished matches list) - full height
 	leftPanel := RenderStatsListPanel(leftWidth, panelHeight, listModel, dateRange)
 
-	// Render right panel (match stats) - shifted down
-	rightPanel := renderMatchStatsPanel(rightWidth, panelHeight, details)
+	// Render right panels (overview top, statistics bottom)
+	overviewPanel := renderMatchOverviewPanel(rightWidth, rightPanelHeight, details)
+	statisticsPanel := renderMatchStatisticsPanel(rightWidth, rightPanelHeight, details)
 
-	// Create separator
-	separatorStyle := lipgloss.NewStyle().
+	// Create vertical separator between left and right
+	verticalSeparatorStyle := lipgloss.NewStyle().
 		Foreground(borderColor).
 		Height(panelHeight).
 		Padding(0, 1)
-	separator := separatorStyle.Render("│")
+	verticalSeparator := verticalSeparatorStyle.Render("│")
 
-	// Combine panels
+	// Create horizontal separator between overview and statistics
+	horizontalSeparatorStyle := lipgloss.NewStyle().
+		Foreground(borderColor).
+		Width(rightWidth).
+		Padding(0, 1)
+	horizontalSeparator := horizontalSeparatorStyle.Render(strings.Repeat("─", rightWidth-2))
+
+	// Combine right panels vertically
+	rightPanels := lipgloss.JoinVertical(
+		lipgloss.Left,
+		overviewPanel,
+		horizontalSeparator,
+		statisticsPanel,
+	)
+
+	// Combine left and right horizontally
 	panels := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftPanel,
-		separator,
-		rightPanel,
+		verticalSeparator,
+		rightPanels,
 	)
 
 	// Combine spinner area and panels
