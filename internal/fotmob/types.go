@@ -1,6 +1,7 @@
 package fotmob
 
 import (
+	"encoding/json"
 	"sort"
 	"strconv"
 	"strings"
@@ -150,31 +151,71 @@ type fotmobMatchDetails struct {
 				Stadium struct {
 					Name string `json:"name"`
 				} `json:"Stadium,omitempty"`
+				Referee *struct {
+					Text string `json:"text"`
+				} `json:"Referee,omitempty"`
+				Attendance json.RawMessage `json:"Attendance,omitempty"` // Can be int or object
 			} `json:"infoBox,omitempty"`
 		} `json:"matchFacts"`
 		Stats struct {
 			Periods struct {
 				All struct {
-					Stats []struct {
-						Title string `json:"title"`
-						Stats []struct {
-							Key   string `json:"key"`
-							Value string `json:"value"`
-						} `json:"stats"`
-					} `json:"stats"`
+					Stats []fotmobStatCategory `json:"stats"`
 				} `json:"all,omitempty"`
 			} `json:"periods,omitempty"`
 		} `json:"stats,omitempty"`
+		Lineup struct {
+			Lineup []fotmobTeamLineup `json:"lineup"`
+		} `json:"lineup,omitempty"`
 	} `json:"content"`
+}
+
+// fotmobStatCategory represents a category of match statistics
+type fotmobStatCategory struct {
+	Title string           `json:"title"`
+	Stats []fotmobStatItem `json:"stats"`
+}
+
+// fotmobStatItem represents a single statistic item
+type fotmobStatItem struct {
+	Key       string        `json:"key"`
+	Title     string        `json:"title"`
+	Stats     []interface{} `json:"stats"` // [homeValue, awayValue] - can be int, float, or string
+	Type      string        `json:"type,omitempty"`
+	Highlight string        `json:"highlight,omitempty"` // "home" or "away" for who's better
+}
+
+// fotmobTeamLineup represents a team's lineup
+type fotmobTeamLineup struct {
+	TeamID     int                  `json:"teamId"`
+	TeamName   string               `json:"teamName"`
+	Formation  string               `json:"formation"`
+	Bench      []fotmobPlayerInfo   `json:"bench"`
+	Players    [][]fotmobPlayerInfo `json:"players"` // Grouped by position rows
+	OptaLineup *struct {
+		Starting []fotmobPlayerInfo `json:"starting"`
+	} `json:"optaLineup,omitempty"`
+}
+
+// fotmobPlayerInfo represents player information in lineups
+type fotmobPlayerInfo struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Shirt    int    `json:"shirt"`
+	Position string `json:"position,omitempty"`
+	Role     string `json:"role,omitempty"`
+	Rating   *struct {
+		Num string `json:"num"`
+	} `json:"rating,omitempty"`
 }
 
 // fotmobEventDetail represents a single event detail from FotMob
 type fotmobEventDetail struct {
-	Time    int    `json:"time"`
-	TimeStr int    `json:"timeStr"`
-	Type    string `json:"type"`
-	EventID int    `json:"eventId"`
-	IsHome  bool   `json:"isHome"`
+	Time    int         `json:"time"`
+	TimeStr interface{} `json:"timeStr"` // Can be int or string
+	Type    string      `json:"type"`
+	EventID int         `json:"eventId"`
+	IsHome  bool        `json:"isHome"`
 	Player  *struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
@@ -284,6 +325,29 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 		details.Venue = m.Content.MatchFacts.InfoBox.Stadium.Name
 	}
 
+	// Populate referee
+	if m.Content.MatchFacts.InfoBox.Referee != nil {
+		details.Referee = m.Content.MatchFacts.InfoBox.Referee.Text
+	}
+
+	// Populate attendance
+	// Populate attendance (can be int or object with "number" field)
+	if len(m.Content.MatchFacts.InfoBox.Attendance) > 0 {
+		// Try to parse as int first
+		var attendanceInt int
+		if err := json.Unmarshal(m.Content.MatchFacts.InfoBox.Attendance, &attendanceInt); err == nil {
+			details.Attendance = attendanceInt
+		} else {
+			// Try to parse as object with "number" field
+			var attendanceObj struct {
+				Number int `json:"number"`
+			}
+			if err := json.Unmarshal(m.Content.MatchFacts.InfoBox.Attendance, &attendanceObj); err == nil {
+				details.Attendance = attendanceObj.Number
+			}
+		}
+	}
+
 	// Extract half-time score from events (look for "Half" event type)
 	// Also set match duration (default to 90, but can be 120 for extra time)
 	details.MatchDuration = 90
@@ -308,8 +372,11 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 		}
 	}
 
-	// Populate match events (already being done below, but ensure they're added)
-	// Events are converted from content.matchFacts.events
+	// Parse match statistics
+	details.Statistics = m.parseStatistics()
+
+	// Parse lineup information
+	m.parseLineups(details)
 
 	// Convert events from content.matchFacts.events
 	events := make([]api.MatchEvent, 0, len(m.Content.MatchFacts.Events.Events))
@@ -386,6 +453,109 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 
 	details.Events = events
 	return details
+}
+
+// parseStatistics extracts match statistics from FotMob response
+func (m fotmobMatchDetails) parseStatistics() []api.MatchStatistic {
+	var stats []api.MatchStatistic
+
+	for _, category := range m.Content.Stats.Periods.All.Stats {
+		for _, stat := range category.Stats {
+			if len(stat.Stats) < 2 {
+				continue
+			}
+
+			// Convert stat values to strings
+			homeVal := formatStatValue(stat.Stats[0])
+			awayVal := formatStatValue(stat.Stats[1])
+
+			// Skip empty stats
+			if homeVal == "" && awayVal == "" {
+				continue
+			}
+
+			stats = append(stats, api.MatchStatistic{
+				Key:       stat.Key,
+				Label:     stat.Title,
+				HomeValue: homeVal,
+				AwayValue: awayVal,
+			})
+		}
+	}
+
+	return stats
+}
+
+// formatStatValue converts a stat value (can be int, float, or string) to string
+func formatStatValue(val interface{}) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case float64:
+		// Check if it's a whole number
+		if v == float64(int(v)) {
+			return strconv.Itoa(int(v))
+		}
+		return strconv.FormatFloat(v, 'f', 1, 64)
+	case int:
+		return strconv.Itoa(v)
+	default:
+		return ""
+	}
+}
+
+// parseLineups extracts lineup information from FotMob response
+func (m fotmobMatchDetails) parseLineups(details *api.MatchDetails) {
+	for _, lineup := range m.Content.Lineup.Lineup {
+		isHome := lineup.TeamID == m.General.HomeTeam.ID
+
+		// Set formation
+		if isHome {
+			details.HomeFormation = lineup.Formation
+		} else {
+			details.AwayFormation = lineup.Formation
+		}
+
+		// Extract starting players from the nested players array
+		var starting []api.PlayerInfo
+		for _, row := range lineup.Players {
+			for _, p := range row {
+				player := api.PlayerInfo{
+					ID:       p.ID,
+					Name:     p.Name,
+					Number:   p.Shirt,
+					Position: p.Position,
+				}
+				if p.Rating != nil {
+					player.Rating = p.Rating.Num
+				}
+				starting = append(starting, player)
+			}
+		}
+
+		// Extract substitutes
+		var substitutes []api.PlayerInfo
+		for _, p := range lineup.Bench {
+			player := api.PlayerInfo{
+				ID:       p.ID,
+				Name:     p.Name,
+				Number:   p.Shirt,
+				Position: p.Position,
+			}
+			if p.Rating != nil {
+				player.Rating = p.Rating.Num
+			}
+			substitutes = append(substitutes, player)
+		}
+
+		if isHome {
+			details.HomeStarting = starting
+			details.HomeSubstitutes = substitutes
+		} else {
+			details.AwayStarting = starting
+			details.AwaySubstitutes = substitutes
+		}
+	}
 }
 
 // fotmobTableRow represents a single row in the league table from FotMob

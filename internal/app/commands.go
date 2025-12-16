@@ -79,6 +79,7 @@ func pollMatchDetails(client *fotmob.Client, parser *fotmob.LiveUpdateParser, ma
 // fetchFinishedMatchesFotmob fetches finished matches from FotMob API.
 // days specifies how many days to fetch (1 or 3).
 // For 1-day view, uses optimized MatchesForToday to avoid duplicate API calls.
+// Triggers background pre-fetching of match details for the first few matches.
 func fetchFinishedMatchesFotmob(client *fotmob.Client, useMockData bool, days int) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
@@ -92,19 +93,37 @@ func fetchFinishedMatchesFotmob(client *fotmob.Client, useMockData bool, days in
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		var matches []api.Match
+
 		// Optimized path for 1-day view
 		if days == 1 {
 			finished, _, err := client.MatchesForToday(ctx)
 			if err != nil {
 				return finishedMatchesMsg{matches: nil}
 			}
-			return finishedMatchesMsg{matches: finished}
+			matches = finished
+		} else {
+			// Standard path for multi-day view
+			fetched, err := client.RecentFinishedMatches(ctx, days)
+			if err != nil {
+				return finishedMatchesMsg{matches: nil}
+			}
+			matches = fetched
 		}
 
-		// Standard path for multi-day view
-		matches, err := client.RecentFinishedMatches(ctx, days)
-		if err != nil {
-			return finishedMatchesMsg{matches: nil}
+		// Trigger background pre-fetching for the first 5 matches
+		// This improves perceived performance when user navigates the list
+		if len(matches) > 0 {
+			matchIDs := make([]int, 0, min(5, len(matches)))
+			for i := 0; i < len(matches) && i < 5; i++ {
+				matchIDs = append(matchIDs, matches[i].ID)
+			}
+			// Use a separate context for background pre-fetching
+			prefetchCtx, prefetchCancel := context.WithTimeout(context.Background(), 60*time.Second)
+			go func() {
+				defer prefetchCancel()
+				client.PreFetchMatchDetails(prefetchCtx, matchIDs, 5)
+			}()
 		}
 
 		return finishedMatchesMsg{matches: matches}

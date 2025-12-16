@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/0xjuanma/golazo/internal/api"
 	"github.com/0xjuanma/golazo/internal/constants"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -311,6 +313,7 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, upcomin
 
 // renderStatsMatchDetailsPanel renders the right panel for stats view with match details.
 // Uses Neon design with Golazo red/cyan theme.
+// Displays expanded match information including statistics, lineups, and more.
 func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails) string {
 	if details == nil {
 		emptyMessage := neonDimStyle.
@@ -338,17 +341,18 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails) 
 		awayTeam = details.AwayTeam.Name
 	}
 
-	// Header: Match Info
+	// ═══════════════════════════════════════════════
+	// MATCH HEADER
+	// ═══════════════════════════════════════════════
 	lines = append(lines, neonHeaderStyle.Render("Match Info"))
 	lines = append(lines, "")
 
-	// Score line - centered
+	// Score line - centered with large emphasis
 	var scoreDisplay string
 	if details.HomeScore != nil && details.AwayScore != nil {
-		scoreDisplay = fmt.Sprintf("%s  %d - %d  %s",
+		scoreDisplay = fmt.Sprintf("%s  %s  %s",
 			neonTeamStyle.Render(homeTeam),
-			*details.HomeScore,
-			*details.AwayScore,
+			neonScoreStyle.Render(fmt.Sprintf("%d - %d", *details.HomeScore, *details.AwayScore)),
 			neonTeamStyle.Render(awayTeam))
 	} else {
 		scoreDisplay = fmt.Sprintf("%s  vs  %s",
@@ -356,46 +360,47 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails) 
 			neonTeamStyle.Render(awayTeam))
 	}
 	lines = append(lines, lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(scoreDisplay))
-	lines = append(lines, "")
 
-	// Status
-	var statusStr string
+	// Status + Half-time in one line
+	var statusLine string
 	switch details.Status {
 	case api.MatchStatusFinished:
-		statusStr = neonFinishedStyle.Render("FT")
+		statusLine = neonFinishedStyle.Render("FT")
 	case api.MatchStatusLive:
 		if details.LiveTime != nil {
-			statusStr = neonLiveStyle.Render(*details.LiveTime)
+			statusLine = neonLiveStyle.Render(*details.LiveTime)
 		} else {
-			statusStr = neonLiveStyle.Render("LIVE")
+			statusLine = neonLiveStyle.Render("LIVE")
 		}
 	default:
-		statusStr = neonDimStyle.Render(string(details.Status))
+		statusLine = neonDimStyle.Render(string(details.Status))
 	}
-	lines = append(lines, neonLabelStyle.Render("Status:      ")+statusStr)
+	if details.HalfTimeScore != nil && details.HalfTimeScore.Home != nil && details.HalfTimeScore.Away != nil {
+		statusLine += neonDimStyle.Render(fmt.Sprintf("  (HT: %d-%d)", *details.HalfTimeScore.Home, *details.HalfTimeScore.Away))
+	}
+	lines = append(lines, lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(statusLine))
+	lines = append(lines, "")
 
-	// League
+	// Match context row
 	if details.League.Name != "" {
 		lines = append(lines, neonLabelStyle.Render("League:      ")+neonValueStyle.Render(details.League.Name))
 	}
-
-	// Venue
 	if details.Venue != "" {
-		lines = append(lines, neonLabelStyle.Render("Venue:       ")+neonValueStyle.Render(details.Venue))
+		lines = append(lines, neonLabelStyle.Render("Venue:       ")+neonValueStyle.Render(truncateString(details.Venue, contentWidth-14)))
 	}
-
-	// Date
 	if details.MatchTime != nil {
-		lines = append(lines, neonLabelStyle.Render("Date:        ")+neonValueStyle.Render(details.MatchTime.Format("02 Jan 2006")))
+		lines = append(lines, neonLabelStyle.Render("Date:        ")+neonValueStyle.Render(details.MatchTime.Format("02 Jan 2006, 15:04")))
+	}
+	if details.Referee != "" {
+		lines = append(lines, neonLabelStyle.Render("Referee:     ")+neonValueStyle.Render(details.Referee))
+	}
+	if details.Attendance > 0 {
+		lines = append(lines, neonLabelStyle.Render("Attendance:  ")+neonValueStyle.Render(formatNumber(details.Attendance)))
 	}
 
-	// Half-time score
-	if details.HalfTimeScore != nil && details.HalfTimeScore.Home != nil && details.HalfTimeScore.Away != nil {
-		htStr := fmt.Sprintf("%d - %d", *details.HalfTimeScore.Home, *details.HalfTimeScore.Away)
-		lines = append(lines, neonLabelStyle.Render("Half-Time:   ")+neonValueStyle.Render(htStr))
-	}
-
-	// Goals section
+	// ═══════════════════════════════════════════════
+	// GOALS TIMELINE
+	// ═══════════════════════════════════════════════
 	var homeGoals, awayGoals []api.MatchEvent
 	for _, event := range details.Events {
 		if event.Type == "goal" {
@@ -414,44 +419,129 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails) 
 		if len(homeGoals) > 0 {
 			lines = append(lines, neonTeamStyle.Render(homeTeam))
 			for _, g := range homeGoals {
-				player := "Unknown"
-				if g.Player != nil {
-					player = *g.Player
-				}
-				lines = append(lines, fmt.Sprintf("  %s %s", neonScoreStyle.Render(fmt.Sprintf("%d'", g.Minute)), neonValueStyle.Render(player)))
+				goalLine := renderGoalLine(g, contentWidth-2)
+				lines = append(lines, "  "+goalLine)
 			}
 		}
 
 		if len(awayGoals) > 0 {
 			lines = append(lines, neonTeamStyle.Render(awayTeam))
 			for _, g := range awayGoals {
-				player := "Unknown"
-				if g.Player != nil {
-					player = *g.Player
-				}
-				lines = append(lines, fmt.Sprintf("  %s %s", neonScoreStyle.Render(fmt.Sprintf("%d'", g.Minute)), neonValueStyle.Render(player)))
+				goalLine := renderGoalLine(g, contentWidth-2)
+				lines = append(lines, "  "+goalLine)
 			}
 		}
 	}
 
-	// Cards section
-	var yellowCards, redCards int
+	// ═══════════════════════════════════════════════
+	// CARDS SUMMARY
+	// ═══════════════════════════════════════════════
+	var homeYellow, awayYellow, homeRed, awayRed int
 	for _, event := range details.Events {
-		if event.Type == "yellowCard" {
-			yellowCards++
-		} else if event.Type == "redCard" {
-			redCards++
+		isHome := event.Team.ID == details.HomeTeam.ID
+		// Check for card events - FotMob uses lowercase "card" type
+		if event.Type == "card" {
+			if event.EventType != nil {
+				switch *event.EventType {
+				case "yellow", "yellowcard":
+					if isHome {
+						homeYellow++
+					} else {
+						awayYellow++
+					}
+				case "red", "redcard", "secondyellow":
+					if isHome {
+						homeRed++
+					} else {
+						awayRed++
+					}
+				}
+			}
 		}
 	}
 
-	if yellowCards > 0 || redCards > 0 {
+	if homeYellow > 0 || awayYellow > 0 || homeRed > 0 || awayRed > 0 {
 		lines = append(lines, "")
 		lines = append(lines, neonHeaderStyle.Render("Cards"))
-		if yellowCards > 0 {
-			lines = append(lines, fmt.Sprintf("  %s %s", neonTeamStyle.Render("Yellow:"), neonValueStyle.Render(fmt.Sprintf("%d", yellowCards))))
+
+		// Get short team names (3 chars max)
+		homeShort := homeTeam
+		if len(homeShort) > 3 {
+			homeShort = homeShort[:3]
 		}
-		if redCards > 0 {
-			lines = append(lines, fmt.Sprintf("  %s %s", neonLiveStyle.Render("Red:"), neonValueStyle.Render(fmt.Sprintf("%d", redCards))))
+		awayShort := awayTeam
+		if len(awayShort) > 3 {
+			awayShort = awayShort[:3]
+		}
+
+		cardLine := fmt.Sprintf("  Yellow: %s %d - %d %s",
+			neonDimStyle.Render(homeShort),
+			homeYellow,
+			awayYellow,
+			neonDimStyle.Render(awayShort))
+		lines = append(lines, neonTeamStyle.Render(cardLine))
+		if homeRed > 0 || awayRed > 0 {
+			redLine := fmt.Sprintf("  Red:    %s %d - %d %s",
+				neonDimStyle.Render(homeShort),
+				homeRed,
+				awayRed,
+				neonDimStyle.Render(awayShort))
+			lines = append(lines, neonLiveStyle.Render(redLine))
+		}
+	}
+
+	// ═══════════════════════════════════════════════
+	// MATCH STATISTICS (Visual Progress Bars)
+	// ═══════════════════════════════════════════════
+	if len(details.Statistics) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, neonHeaderStyle.Render("Statistics"))
+
+		// Only show these 5 specific stats
+		wantedStats := []struct {
+			patterns   []string
+			label      string
+			isProgress bool // true = show as progress bar
+		}{
+			{[]string{"possession", "ball possession", "ballpossesion"}, "Possession", true},
+			{[]string{"total_shots", "total shots"}, "Total Shots", false},
+			{[]string{"shots_on_target", "on target", "shotsontarget"}, "Shots on Target", false},
+			{[]string{"accurate_passes", "accurate passes"}, "Accurate Passes", false},
+			{[]string{"fouls", "fouls committed"}, "Fouls", false},
+		}
+
+		// Style for centering stat blocks
+		centerStyle := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center)
+
+		for _, wanted := range wantedStats {
+			for _, stat := range details.Statistics {
+				keyLower := strings.ToLower(stat.Key)
+				labelLower := strings.ToLower(stat.Label)
+
+				matched := false
+				for _, pattern := range wanted.patterns {
+					if strings.Contains(keyLower, pattern) || strings.Contains(labelLower, pattern) {
+						matched = true
+						break
+					}
+				}
+
+				if matched {
+					// Add spacing before each stat
+					lines = append(lines, "")
+
+					if wanted.isProgress {
+						// Render as visual progress bar (centered)
+						statLine := renderStatProgressBar(wanted.label, stat.HomeValue, stat.AwayValue, contentWidth, homeTeam, awayTeam)
+						lines = append(lines, centerStyle.Render(statLine))
+					} else {
+						// Render as comparison bar (centered)
+						statLine := renderStatComparison(wanted.label, stat.HomeValue, stat.AwayValue, contentWidth)
+						lines = append(lines, centerStyle.Render(statLine))
+					}
+					break
+				}
+			}
 		}
 	}
 
@@ -461,4 +551,192 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails) 
 		Width(width).
 		Height(height).
 		Render(content)
+}
+
+// renderGoalLine renders a single goal with scorer, minute, and assist
+func renderGoalLine(g api.MatchEvent, maxWidth int) string {
+	player := "Unknown"
+	if g.Player != nil {
+		player = *g.Player
+	}
+
+	minuteStr := neonScoreStyle.Render(fmt.Sprintf("%d'", g.Minute))
+	playerStr := neonValueStyle.Render(truncateString(player, maxWidth-10))
+
+	line := fmt.Sprintf("%s %s", minuteStr, playerStr)
+
+	// Add assist if available
+	if g.Assist != nil && *g.Assist != "" {
+		line += neonDimStyle.Render(fmt.Sprintf(" (%s)", truncateString(*g.Assist, 15)))
+	}
+
+	return line
+}
+
+// Fixed bar width for consistent UI
+const statBarWidth = 20
+
+// renderStatProgressBar renders a stat as a visual progress bar using bubbles progress component
+// Uses gradient fill from cyan to red for the Golazo theme
+// Fixed width of 20 squares for consistent UI
+// Renders label on first line, bar on second line (both centered)
+func renderStatProgressBar(label, homeVal, awayVal string, maxWidth int, homeTeam, awayTeam string) string {
+	// Parse percentage values (e.g., "59" or "59%")
+	homePercent := parsePercent(homeVal)
+	awayPercent := parsePercent(awayVal)
+
+	// Normalize if they don't add up to 100
+	total := homePercent + awayPercent
+	if total > 0 && total != 100 {
+		homePercent = (homePercent * 100) / total
+		awayPercent = 100 - homePercent
+	}
+
+	// Create bubbles progress bar with gradient (cyan -> red for Golazo theme)
+	prog := progress.New(
+		progress.WithScaledGradient("#00FFFF", "#FF0055"), // Cyan to Red gradient
+		progress.WithWidth(statBarWidth),
+		progress.WithoutPercentage(),
+	)
+
+	// Render the progress bar at home team's percentage
+	progressView := prog.ViewAs(float64(homePercent) / 100.0)
+
+	// Format values
+	homeValStyled := neonValueStyle.Render(fmt.Sprintf("%3d%%", homePercent))
+	awayValStyled := neonDimStyle.Render(fmt.Sprintf("%3d%%", awayPercent))
+
+	// Line 1: Label (centered via parent, no width constraint)
+	labelStyle := lipgloss.NewStyle().Foreground(neonDim)
+	labelLine := labelStyle.Render(label)
+
+	// Line 2: Bar with values
+	barLine := fmt.Sprintf("%s %s %s", homeValStyled, progressView, awayValStyled)
+
+	return labelLine + "\n" + barLine
+}
+
+// renderStatComparison renders a stat as a visual comparison (for counts like shots, fouls)
+// Fixed width of 20 squares total (10 per side) for consistent UI
+// Renders label on first line, bar on second line (both centered)
+func renderStatComparison(label, homeVal, awayVal string, maxWidth int) string {
+	// Parse numeric values
+	homeNum := parseNumber(homeVal)
+	awayNum := parseNumber(awayVal)
+
+	// Determine who has more (for highlighting)
+	homeStyle := neonValueStyle
+	awayStyle := neonValueStyle
+	if homeNum > awayNum {
+		homeStyle = lipgloss.NewStyle().Foreground(neonCyan).Bold(true)
+	} else if awayNum > homeNum {
+		awayStyle = lipgloss.NewStyle().Foreground(neonCyan).Bold(true)
+	}
+
+	// Fixed bar width: 10 squares per side = 20 total
+	halfBar := statBarWidth / 2
+
+	// Visual bar comparison - proportional to max value
+	maxVal := max(homeNum, awayNum)
+	if maxVal == 0 {
+		maxVal = 1
+	}
+
+	// Home bar (right-aligned, grows left)
+	homeFilled := (homeNum * halfBar) / maxVal
+	if homeFilled > halfBar {
+		homeFilled = halfBar
+	}
+	homeEmpty := halfBar - homeFilled
+	homeBar := strings.Repeat(" ", homeEmpty) + strings.Repeat("▪", homeFilled)
+	homeBarStyled := lipgloss.NewStyle().Foreground(neonCyan).Render(homeBar)
+
+	// Away bar (left-aligned, grows right)
+	awayFilled := (awayNum * halfBar) / maxVal
+	if awayFilled > halfBar {
+		awayFilled = halfBar
+	}
+	awayEmpty := halfBar - awayFilled
+	awayBar := strings.Repeat("▪", awayFilled) + strings.Repeat(" ", awayEmpty)
+	awayBarStyled := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(awayBar)
+
+	// Line 1: Label (centered via parent, no width constraint)
+	labelStyle := lipgloss.NewStyle().Foreground(neonDim)
+	labelLine := labelStyle.Render(label)
+
+	// Line 2: Bar with values
+	barLine := fmt.Sprintf("%s %s %s %s",
+		homeStyle.Render(fmt.Sprintf("%10s", homeVal)),
+		homeBarStyled,
+		awayBarStyled,
+		awayStyle.Render(fmt.Sprintf("%-10s", awayVal)))
+
+	return labelLine + "\n" + barLine
+}
+
+// parsePercent extracts a percentage value from a string like "59" or "59%"
+func parsePercent(s string) int {
+	s = strings.TrimSuffix(s, "%")
+	s = strings.TrimSpace(s)
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// parseNumber extracts a numeric value from a string, handling formats like "476 (89%)"
+func parseNumber(s string) int {
+	// Handle formats like "476 (89%)" - extract first number
+	s = strings.TrimSpace(s)
+	if idx := strings.Index(s, " "); idx > 0 {
+		s = s[:idx]
+	}
+	if idx := strings.Index(s, "("); idx > 0 {
+		s = s[:idx]
+	}
+	s = strings.TrimSpace(s)
+
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// truncateString truncates a string to maxLen, adding "..." if truncated
+func truncateString(s string, maxLen int) string {
+	if maxLen <= 3 {
+		return s
+	}
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// formatNumber formats a number with thousand separators
+func formatNumber(n int) string {
+	s := fmt.Sprintf("%d", n)
+	if n < 1000 {
+		return s
+	}
+
+	// Insert commas from right to left
+	result := ""
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result += ","
+		}
+		result += string(c)
+	}
+	return result
+}
+
+// min returns the smaller of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

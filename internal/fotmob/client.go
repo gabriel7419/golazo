@@ -69,18 +69,26 @@ type Client struct {
 	httpClient  *http.Client
 	baseURL     string
 	rateLimiter *RateLimiter
+	cache       *ResponseCache
 }
 
 // NewClient creates a new FotMob API client with default configuration.
 // Includes minimal rate limiting (200ms between requests) for fast concurrent requests.
+// Uses default caching configuration for improved performance.
 func NewClient() *Client {
 	return &Client{
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 15 * time.Second,
 		},
 		baseURL:     baseURL,
 		rateLimiter: NewRateLimiter(200 * time.Millisecond), // Minimal delay for concurrent requests
+		cache:       NewResponseCache(DefaultCacheConfig()),
 	}
+}
+
+// GetCache returns the response cache for external access (e.g., pre-fetching).
+func (c *Client) GetCache() *ResponseCache {
+	return c.cache
 }
 
 // MatchesByDate retrieves all matches for a specific date.
@@ -88,9 +96,15 @@ func NewClient() *Client {
 // we query each supported league separately and filter by date client-side.
 // We query both "fixtures" (upcoming) and "results" (finished) tabs concurrently.
 // All requests are made concurrently with minimal rate limiting for maximum speed.
+// Results are cached to avoid redundant API calls.
 func (c *Client) MatchesByDate(ctx context.Context, date time.Time) ([]api.Match, error) {
 	// Normalize date to UTC for consistent comparison
 	requestDateStr := date.UTC().Format("2006-01-02")
+
+	// Check cache first
+	if cached := c.cache.GetMatches(requestDateStr); cached != nil {
+		return cached, nil
+	}
 
 	// Use a mutex to protect the shared slice
 	var mu sync.Mutex
@@ -188,11 +202,21 @@ func (c *Client) MatchesByDate(ctx context.Context, date time.Time) ([]api.Match
 	}
 
 	wg.Wait()
+
+	// Cache the results before returning
+	c.cache.SetMatches(requestDateStr, allMatches)
+
 	return allMatches, nil
 }
 
 // MatchDetails retrieves detailed information about a specific match.
+// Results are cached to avoid redundant API calls.
 func (c *Client) MatchDetails(ctx context.Context, matchID int) (*api.MatchDetails, error) {
+	// Check cache first
+	if cached := c.cache.GetDetails(matchID); cached != nil {
+		return cached, nil
+	}
+
 	// Apply rate limiting
 	c.rateLimiter.Wait()
 
@@ -221,7 +245,75 @@ func (c *Client) MatchDetails(ctx context.Context, matchID int) (*api.MatchDetai
 		return nil, fmt.Errorf("decode match details response for match %d: %w", matchID, err)
 	}
 
-	return response.toAPIMatchDetails(), nil
+	details := response.toAPIMatchDetails()
+
+	// Cache the result
+	c.cache.SetDetails(matchID, details)
+
+	return details, nil
+}
+
+// BatchMatchDetails retrieves details for multiple matches concurrently.
+// Uses caching and rate limiting to balance speed with API limits.
+// Returns a map of matchID -> details (nil if fetch failed).
+func (c *Client) BatchMatchDetails(ctx context.Context, matchIDs []int) map[int]*api.MatchDetails {
+	results := make(map[int]*api.MatchDetails)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, id := range matchIDs {
+		wg.Add(1)
+		go func(matchID int) {
+			defer wg.Done()
+
+			details, err := c.MatchDetails(ctx, matchID)
+			if err != nil {
+				// Store nil for failed fetches
+				mu.Lock()
+				results[matchID] = nil
+				mu.Unlock()
+				return
+			}
+
+			mu.Lock()
+			results[matchID] = details
+			mu.Unlock()
+		}(id)
+	}
+
+	wg.Wait()
+	return results
+}
+
+// PreFetchMatchDetails fetches details for the first N matches in the background.
+// This improves perceived performance by pre-loading details before user selection.
+// maxConcurrent limits how many concurrent requests to make.
+func (c *Client) PreFetchMatchDetails(ctx context.Context, matchIDs []int, maxPrefetch int) {
+	if len(matchIDs) == 0 {
+		return
+	}
+
+	// Limit the number of matches to prefetch
+	if maxPrefetch > 0 && len(matchIDs) > maxPrefetch {
+		matchIDs = matchIDs[:maxPrefetch]
+	}
+
+	// Filter out already cached matches
+	var uncachedIDs []int
+	for _, id := range matchIDs {
+		if c.cache.GetDetails(id) == nil {
+			uncachedIDs = append(uncachedIDs, id)
+		}
+	}
+
+	if len(uncachedIDs) == 0 {
+		return
+	}
+
+	// Fetch uncached matches in the background (fire and forget)
+	go func() {
+		c.BatchMatchDetails(ctx, uncachedIDs)
+	}()
 }
 
 // Leagues retrieves available leagues.
