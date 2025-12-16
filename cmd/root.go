@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Short: "Football match stats and updates in your terminal",
 	Long:  `A modern terminal user interface for real-time football stats and scores, covering multiple leagues and competitions.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		p := tea.NewProgram(app.NewModel(mockFlag), tea.WithAltScreen())
+		p := tea.NewProgram(app.New(mockFlag), tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 			os.Exit(1)
