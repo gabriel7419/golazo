@@ -9,19 +9,19 @@ import (
 
 // CacheConfig holds configuration for API response caching.
 type CacheConfig struct {
-	MatchesTTL       time.Duration // How long to cache match list results
-	MatchDetailsTTL  time.Duration // How long to cache match details
-	MaxMatchesCache  int           // Maximum number of date entries to cache
-	MaxDetailsCache  int           // Maximum number of match details to cache
+	MatchesTTL      time.Duration // How long to cache match list results
+	MatchDetailsTTL time.Duration // How long to cache match details
+	MaxMatchesCache int           // Maximum number of date entries to cache
+	MaxDetailsCache int           // Maximum number of match details to cache
 }
 
 // DefaultCacheConfig returns sensible defaults for caching.
 func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
-		MatchesTTL:       5 * time.Minute,  // Matches can change (scores update)
-		MatchDetailsTTL:  2 * time.Minute,  // Details for live matches need fresher data
-		MaxMatchesCache:  10,               // Cache up to 10 date queries
-		MaxDetailsCache:  100,              // Cache up to 100 match details
+		MatchesTTL:      15 * time.Minute, // Matches list cache (stats view uses client-side filtering)
+		MatchDetailsTTL: 5 * time.Minute,  // Details for live matches need fresher data
+		MaxMatchesCache: 10,               // Cache up to 10 date queries
+		MaxDetailsCache: 100,              // Cache up to 100 match details
 	}
 }
 
@@ -39,11 +39,11 @@ type cachedDetails struct {
 
 // ResponseCache provides thread-safe caching for API responses.
 type ResponseCache struct {
-	config         CacheConfig
-	matchesMu      sync.RWMutex
-	matchesCache   map[string]cachedMatches // key: "YYYY-MM-DD"
-	detailsMu      sync.RWMutex
-	detailsCache   map[int]cachedDetails    // key: matchID
+	config       CacheConfig
+	matchesMu    sync.RWMutex
+	matchesCache map[string]cachedMatches // key: "YYYY-MM-DD"
+	detailsMu    sync.RWMutex
+	detailsCache map[int]cachedDetails // key: matchID
 }
 
 // NewResponseCache creates a new cache with the given configuration.
@@ -190,4 +190,3 @@ func (c *ResponseCache) evictOldestDetails() {
 		delete(c.detailsCache, oldestKey)
 	}
 }
-
