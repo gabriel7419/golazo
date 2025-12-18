@@ -11,10 +11,19 @@ import (
 
 // LiveMatches retrieves all currently live matches for today.
 // Fetches matches from supported leagues and filters for those that have started but not finished.
-// Matches are already filtered by supported leagues in MatchesByDate.
+// Only queries "fixtures" tab since live matches are not in "results" (50% fewer API calls).
+// Results are cached for 2 minutes to avoid redundant fetches on quick navigation.
 func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
+	// Check cache first (2-min TTL for quick nav in/out)
+	if cached := c.cache.GetLiveMatches(); cached != nil {
+		return cached, nil
+	}
+
 	today := time.Now()
-	matches, err := c.MatchesByDate(ctx, today)
+
+	// Only query "fixtures" tab - live matches are in fixtures, not results
+	// This reduces API calls from 28 (14 leagues × 2 tabs) to 14 (14 leagues × 1 tab)
+	matches, err := c.MatchesByDateWithTabs(ctx, today, []string{"fixtures"})
 	if err != nil {
 		return nil, fmt.Errorf("fetch matches for date %s: %w", today.Format("2006-01-02"), err)
 	}
@@ -22,13 +31,22 @@ func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
 	// Filter for live matches only (started but not finished)
 	var liveMatches []api.Match
 	for _, match := range matches {
-		// Only include matches that are live (started but not finished)
 		if match.Status == api.MatchStatusLive {
 			liveMatches = append(liveMatches, match)
 		}
 	}
 
+	// Cache the result
+	c.cache.SetLiveMatches(liveMatches)
+
 	return liveMatches, nil
+}
+
+// LiveMatchesForceRefresh fetches live matches, bypassing the cache.
+// Use this for periodic refreshes to get the latest data.
+func (c *Client) LiveMatchesForceRefresh(ctx context.Context) ([]api.Match, error) {
+	c.cache.ClearLiveCache()
+	return c.LiveMatches(ctx)
 }
 
 // LiveUpdateParser parses match events into live update strings.
