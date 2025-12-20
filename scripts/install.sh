@@ -32,10 +32,9 @@ ASCII_LOGO="  ________       .__
  \______  /\____/|____(____  /_____ \____/ 
         \/                 \/      \/      "
 
-# Get the latest release tag or use main
-VERSION=${1:-main}
 REPO="0xjuanma/golazo"
 BINARY_NAME="golazo"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Print ASCII art header with cyan color
 printf "${BRIGHT_CYAN}${ASCII_LOGO}${NC}\n\n"
@@ -45,48 +44,73 @@ printf "${BRIGHT_GREEN}Installing ${BINARY_NAME}...${NC}\n\n"
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
-case $ARCH in
+case "$ARCH" in
     x86_64) ARCH="amd64" ;;
-    arm64|aarch64) ARCH="arm64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
     *) printf "${BRIGHT_RED}Unsupported architecture: ${ARCH}${NC}\n"; exit 1 ;;
 esac
 
-# Create temp directory
-TMP_DIR=$(mktemp -d)
-trap "rm -rf ${TMP_DIR}" EXIT
+# Check for supported OS
+case "$OS" in
+    darwin|linux) ;;
+    *) printf "${BRIGHT_RED}Unsupported operating system: ${OS}${NC}\n"; exit 1 ;;
+esac
 
-# Clone repository
-printf "${CYAN}Cloning repository...${NC}\n"
-git clone --depth 1 --branch ${VERSION} https://github.com/${REPO}.git ${TMP_DIR}/golazo 2>/dev/null || \
-git clone --depth 1 https://github.com/${REPO}.git ${TMP_DIR}/golazo
+printf "${CYAN}Detected: ${OS}/${ARCH}${NC}\n"
 
-cd ${TMP_DIR}/golazo
+# Get the latest release tag
+printf "${CYAN}Fetching latest release...${NC}\n"
+LATEST=$(curl -sL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
 
-# Build the binary
-printf "${CYAN}Building ${BINARY_NAME}...${NC}\n"
-go build -o ${BINARY_NAME} .
-
-# Determine install location
-if [ -w /usr/local/bin ]; then
-    INSTALL_DIR="/usr/local/bin"
-elif [ -w ~/.local/bin ]; then
-    INSTALL_DIR="$HOME/.local/bin"
-    mkdir -p ${INSTALL_DIR}
-else
-    INSTALL_DIR="$HOME/bin"
-    mkdir -p ${INSTALL_DIR}
+if [ -z "$LATEST" ]; then
+    printf "${BRIGHT_RED}Failed to fetch latest release${NC}\n"
+    exit 1
 fi
 
-# Install the binary
+printf "${CYAN}Latest version: ${LATEST}${NC}\n"
+
+# Construct download URL
+URL="https://github.com/$REPO/releases/download/$LATEST/${BINARY_NAME}-${OS}-${ARCH}"
+
+# Download the binary
+printf "${CYAN}Downloading ${BINARY_NAME} ${LATEST} for ${OS}/${ARCH}...${NC}\n"
+if ! curl -sL "$URL" -o "$BINARY_NAME"; then
+    printf "${BRIGHT_RED}Failed to download binary${NC}\n"
+    exit 1
+fi
+
+chmod +x "$BINARY_NAME"
+
+# Determine install location and install
 printf "${CYAN}Installing to ${INSTALL_DIR}...${NC}\n"
-cp ${BINARY_NAME} ${INSTALL_DIR}/${BINARY_NAME}
-chmod +x ${INSTALL_DIR}/${BINARY_NAME}
 
-# Check if the binary is in PATH
-if ! command -v ${BINARY_NAME} >/dev/null 2>&1; then
-    printf "${YELLOW}Warning: ${BINARY_NAME} may not be in your PATH.${NC}\n"
-    printf "${YELLOW}Add ${INSTALL_DIR} to your PATH if needed.${NC}\n"
+if [ -w "$INSTALL_DIR" ]; then
+    mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+else
+    # Try with sudo if we don't have write access
+    if command -v sudo >/dev/null 2>&1; then
+        sudo mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+    else
+        # Fallback to user's local bin
+        INSTALL_DIR="$HOME/.local/bin"
+        mkdir -p "$INSTALL_DIR"
+        mv "$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+        printf "${YELLOW}Installed to ${INSTALL_DIR} (no sudo available)${NC}\n"
+    fi
 fi
 
-printf "\n${BRIGHT_GREEN}${BINARY_NAME} installed successfully!${NC}\n"
-printf "${BRIGHT_GREEN}Run '${BINARY_NAME}' to start.${NC}\n"
+# Verify installation
+if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
+    # Check if the binary is in PATH
+    if ! command -v "$BINARY_NAME" >/dev/null 2>&1; then
+        printf "\n${YELLOW}Warning: ${BINARY_NAME} may not be in your PATH.${NC}\n"
+        printf "${YELLOW}Add ${INSTALL_DIR} to your PATH if needed:${NC}\n"
+        printf "${CYAN}  export PATH=\"\$PATH:${INSTALL_DIR}\"${NC}\n"
+    fi
+
+    printf "\n${BRIGHT_GREEN}✓ ${BINARY_NAME} ${LATEST} installed successfully!${NC}\n"
+    printf "${BRIGHT_GREEN}Run '${BINARY_NAME}' to start watching live football matches.${NC}\n"
+else
+    printf "${BRIGHT_RED}Installation failed${NC}\n"
+    exit 1
+fi
