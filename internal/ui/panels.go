@@ -293,23 +293,9 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 	}
 
 	var content strings.Builder
+	contentWidth := width - 6
 
-	// Score section - neon red for scores
-	scoreSection := lipgloss.NewStyle().
-		Foreground(neonRed).
-		Bold(true).
-		Align(lipgloss.Center).
-		Padding(0, 0)
-
-	if details.HomeScore != nil && details.AwayScore != nil {
-		scoreText := fmt.Sprintf("%d - %d", *details.HomeScore, *details.AwayScore)
-		content.WriteString(scoreSection.Render(scoreText))
-	} else {
-		content.WriteString(scoreSection.Render("vs"))
-	}
-	content.WriteString("\n")
-
-	// Status and league info with neon colors
+	// 1. Status/Minute and League info (centered)
 	infoStyle := lipgloss.NewStyle().Foreground(neonDim)
 	var statusText string
 	if details.Status == api.MatchStatusLive {
@@ -325,23 +311,41 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 	}
 
 	leagueText := infoStyle.Italic(true).Render(details.League.Name)
-	content.WriteString(lipgloss.JoinHorizontal(
-		lipgloss.Left,
-		statusText,
-		" ",
-		leagueText,
-	))
+	statusLine := lipgloss.NewStyle().
+		Width(contentWidth).
+		Align(lipgloss.Center).
+		Render(statusText + " • " + leagueText)
+	content.WriteString(statusLine)
 	content.WriteString("\n")
 
-	// Teams section with cyan accent
-	teamStyle := lipgloss.NewStyle().Foreground(neonCyan)
-	vsStyle := lipgloss.NewStyle().Foreground(neonWhite)
-	teamsDisplay := lipgloss.JoinHorizontal(lipgloss.Left,
+	// 2. Teams section (centered)
+	teamStyle := lipgloss.NewStyle().Foreground(neonCyan).Bold(true)
+	vsStyle := lipgloss.NewStyle().Foreground(neonDim)
+	teamsDisplay := lipgloss.JoinHorizontal(lipgloss.Center,
 		teamStyle.Render(details.HomeTeam.ShortName),
-		vsStyle.Render(" vs "),
+		vsStyle.Render("  vs  "),
 		teamStyle.Render(details.AwayTeam.ShortName),
 	)
-	content.WriteString(teamsDisplay)
+	teamsLine := lipgloss.NewStyle().
+		Width(contentWidth).
+		Align(lipgloss.Center).
+		Render(teamsDisplay)
+	content.WriteString(teamsLine)
+	content.WriteString("\n\n")
+
+	// 3. Large Score section (centered, prominent)
+	if details.HomeScore != nil && details.AwayScore != nil {
+		largeScore := renderLargeScore(*details.HomeScore, *details.AwayScore, contentWidth)
+		content.WriteString(largeScore)
+	} else {
+		vsText := lipgloss.NewStyle().
+			Foreground(neonDim).
+			Bold(true).
+			Width(contentWidth).
+			Align(lipgloss.Center).
+			Render("vs")
+		content.WriteString(vsText)
+	}
 	content.WriteString("\n\n")
 
 	// For finished matches, show detailed match information
@@ -896,4 +900,78 @@ func formatMatchEventForDisplay(event api.MatchEvent, homeTeam, awayTeam string)
 		" ",
 		eventText,
 	)
+}
+
+// renderLargeScore renders the score in a large, prominent format using block digits.
+// The score is centered within the given width.
+func renderLargeScore(homeScore, awayScore int, width int) string {
+	// Large block-style digits (3 lines tall)
+	digits := map[int][]string{
+		0: {"█▀█", "█ █", "▀▀▀"},
+		1: {" █ ", " █ ", " ▀ "},
+		2: {"▀▀█", "█▀▀", "▀▀▀"},
+		3: {"▀▀█", " ▀█", "▀▀▀"},
+		4: {"█ █", "▀▀█", "  ▀"},
+		5: {"█▀▀", "▀▀█", "▀▀▀"},
+		6: {"█▀▀", "█▀█", "▀▀▀"},
+		7: {"▀▀█", "  █", "  ▀"},
+		8: {"█▀█", "█▀█", "▀▀▀"},
+		9: {"█▀█", "▀▀█", "▀▀▀"},
+	}
+
+	dash := []string{"   ", "▀▀▀", "   "}
+
+	// Helper to get digit patterns for a number (handles multi-digit)
+	getDigitPatterns := func(score int) [][]string {
+		if score < 10 {
+			return [][]string{digits[score]}
+		}
+		// Multi-digit: split into individual digits
+		var patterns [][]string
+		scoreStr := fmt.Sprintf("%d", score)
+		for _, ch := range scoreStr {
+			d := int(ch - '0')
+			patterns = append(patterns, digits[d])
+		}
+		return patterns
+	}
+
+	homePatterns := getDigitPatterns(homeScore)
+	awayPatterns := getDigitPatterns(awayScore)
+
+	// Build 3-line score display
+	var lines []string
+	neonRed := lipgloss.Color("196")
+	scoreStyle := lipgloss.NewStyle().Foreground(neonRed).Bold(true)
+
+	for i := 0; i < 3; i++ {
+		// Build home score line
+		var homeLine string
+		for j, p := range homePatterns {
+			if j > 0 {
+				homeLine += " " // Space between digits
+			}
+			homeLine += p[i]
+		}
+
+		// Build away score line
+		var awayLine string
+		for j, p := range awayPatterns {
+			if j > 0 {
+				awayLine += " " // Space between digits
+			}
+			awayLine += p[i]
+		}
+
+		line := homeLine + "  " + dash[i] + "  " + awayLine
+		lines = append(lines, scoreStyle.Render(line))
+	}
+
+	// Join lines and center the entire block
+	scoreBlock := strings.Join(lines, "\n")
+
+	return lipgloss.NewStyle().
+		Width(width).
+		Align(lipgloss.Center).
+		Render(scoreBlock)
 }
