@@ -119,7 +119,17 @@ func (p *LiveUpdateParser) ParseEvents(events []api.MatchEvent, homeTeam, awayTe
 	return updates
 }
 
-// formatEvent formats a single event into a readable string.
+// Event type prefixes for visual identification (used by UI for coloring)
+const (
+	EventPrefixGoal        = "●" // Solid circle - goals (red)
+	EventPrefixYellowCard  = "▪" // Square - yellow card (cyan)
+	EventPrefixRedCard     = "■" // Filled square - red card (red)
+	EventPrefixSubstitution = "↔" // Arrow - substitution (dim)
+	EventPrefixOther       = "·" // Small dot - other events (dim)
+)
+
+// formatEvent formats a single event into a readable string with symbol prefix.
+// Symbol prefixes are used by the UI to apply appropriate colors.
 func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam api.Team) string {
 	teamName := event.Team.ShortName
 	if teamName == "" {
@@ -139,9 +149,9 @@ func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam 
 		}
 		assistText := ""
 		if event.Assist != nil && *event.Assist != "" {
-			assistText = fmt.Sprintf(" (assist: %s)", *event.Assist)
+			assistText = fmt.Sprintf(" (%s)", *event.Assist)
 		}
-		return fmt.Sprintf("%d' Goal: %s%s - %s", event.Minute, player, assistText, teamName)
+		return fmt.Sprintf("%s %d' %s%s - %s", EventPrefixGoal, event.Minute, player, assistText, teamName)
 
 	case "card":
 		player := "Unknown"
@@ -150,24 +160,28 @@ func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam 
 		}
 		cardType := "yellow"
 		if event.EventType != nil {
-			cardType = *event.EventType
+			cardType = strings.ToLower(*event.EventType)
 		}
-		return fmt.Sprintf("%d' Card (%s): %s - %s", event.Minute, cardType, player, teamName)
+		prefix := EventPrefixYellowCard
+		if cardType == "red" || cardType == "redcard" || cardType == "secondyellow" {
+			prefix = EventPrefixRedCard
+		}
+		return fmt.Sprintf("%s %d' %s - %s", prefix, event.Minute, player, teamName)
 
 	case "substitution":
 		player := "Unknown"
 		if event.Player != nil {
 			player = *event.Player
 		}
-		subType := "substitution"
+		subType := "out"
 		if event.EventType != nil {
-			subType = *event.EventType
+			subType = strings.ToLower(*event.EventType)
 		}
 		arrow := "→"
 		if subType == "in" {
 			arrow = "←"
 		}
-		return fmt.Sprintf("%d' Substitution: %s %s - %s", event.Minute, arrow, player, teamName)
+		return fmt.Sprintf("%s %d' %s %s - %s", EventPrefixSubstitution, event.Minute, arrow, player, teamName)
 
 	default:
 		player := ""
@@ -175,9 +189,9 @@ func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam 
 			player = *event.Player
 		}
 		if player != "" {
-			return fmt.Sprintf("%d' • %s - %s (%s)", event.Minute, player, teamName, event.Type)
+			return fmt.Sprintf("%s %d' %s - %s", EventPrefixOther, event.Minute, player, teamName)
 		}
-		return fmt.Sprintf("%d' • %s - %s", event.Minute, event.Type, teamName)
+		return fmt.Sprintf("%s %d' %s - %s", EventPrefixOther, event.Minute, event.Type, teamName)
 	}
 }
 

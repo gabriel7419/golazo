@@ -565,7 +565,7 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 			// Events are already sorted descending by minute
 			var updatesList []string
 			for _, update := range liveUpdates {
-				updateLine := liveUpdateStyle.Render(update)
+				updateLine := renderStyledLiveUpdate(update)
 				updatesList = append(updatesList, updateLine)
 			}
 			content.WriteString(strings.Join(updatesList, "\n"))
@@ -661,6 +661,51 @@ func renderEvent(event api.MatchEvent, width int) string {
 
 // formatMatchEventForDisplay formats a match event for display in the stats view
 // Uses neon styling with red/cyan theme and no emojis
+// renderStyledLiveUpdate renders a live update string with appropriate colors based on symbol prefix.
+// Uses minimal symbol styling: ● red for goals, ▪ cyan for yellow cards, ■ red for red cards,
+// ↔ dim for substitutions, · dim for other events.
+func renderStyledLiveUpdate(update string) string {
+	if len(update) == 0 {
+		return update
+	}
+
+	// Get the first rune (symbol prefix)
+	runes := []rune(update)
+	symbol := string(runes[0])
+	rest := string(runes[1:])
+
+	// Neon colors matching theme
+	neonRed := lipgloss.Color("196")
+	neonCyan := lipgloss.Color("51")
+	neonDim := lipgloss.Color("244")
+	neonWhite := lipgloss.Color("255")
+
+	var symbolStyle, textStyle lipgloss.Style
+
+	switch symbol {
+	case "●": // Goal - red symbol, white text
+		symbolStyle = lipgloss.NewStyle().Foreground(neonRed).Bold(true)
+		textStyle = lipgloss.NewStyle().Foreground(neonWhite)
+	case "▪": // Yellow card - cyan symbol, white text
+		symbolStyle = lipgloss.NewStyle().Foreground(neonCyan)
+		textStyle = lipgloss.NewStyle().Foreground(neonWhite)
+	case "■": // Red card - red symbol, white text
+		symbolStyle = lipgloss.NewStyle().Foreground(neonRed).Bold(true)
+		textStyle = lipgloss.NewStyle().Foreground(neonWhite)
+	case "↔": // Substitution - dim symbol and text
+		symbolStyle = lipgloss.NewStyle().Foreground(neonDim)
+		textStyle = lipgloss.NewStyle().Foreground(neonDim)
+	case "·": // Other - dim symbol and text
+		symbolStyle = lipgloss.NewStyle().Foreground(neonDim)
+		textStyle = lipgloss.NewStyle().Foreground(neonDim)
+	default:
+		// Unknown prefix, render as-is with default style
+		return lipgloss.NewStyle().Foreground(neonWhite).Render(update)
+	}
+
+	return symbolStyle.Render(symbol) + textStyle.Render(rest)
+}
+
 func formatMatchEventForDisplay(event api.MatchEvent, homeTeam, awayTeam string) string {
 	// Neon colors
 	neonRed := lipgloss.Color("196")
