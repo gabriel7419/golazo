@@ -44,6 +44,11 @@ func (m MatchDisplay) Description() string {
 		desc += " • " + *m.LiveTime
 	}
 
+	// Add start time (kick-off time) for live matches
+	if m.MatchTime != nil {
+		desc += " • KO " + m.MatchTime.Local().Format("15:04")
+	}
+
 	return desc
 }
 
