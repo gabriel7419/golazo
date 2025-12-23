@@ -1,15 +1,24 @@
-<p align="center">
-  <img src="assets/golazo-logo.png" alt="Golazo demo" width="600">
-</p>
+<div align="center">
+  <img src="assets/golazo-logo.png" alt="Golazo demo" width="80">
+  <h1>Golazo</h1>
+</div>
 
-# Golazo
+<div align="center">
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/0xjuanma/golazo)](https://goreportcard.com/report/github.com/0xjuanma/golazo)
+[![GitHub Release](https://img.shields.io/github/v/release/0xjuanma/golazo)](https://github.com/0xjuanma/golazo/releases/latest)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/0xjuanma/golazo/build.yml)](https://github.com/0xjuanma/golazo/actions/workflows/build.yml)
+
+A minimalist terminal user interface (TUI) for following football matches in real-time. Get live match updates, finished match statistics, and minute-by-minute events directly in your terminal.
+</div>
+
 
 > [!IMPORTANT]
 > Tool is in active development.
 
-A minimalist terminal user interface (TUI) for following football matches in real-time. Get live match updates, finished match statistics, and minute-by-minute events directly in your terminal.
 
-## Installation
+## Installation/Update
 
 ### Using the install script (recommended)
 
@@ -17,22 +26,13 @@ A minimalist terminal user interface (TUI) for following football matches in rea
 curl -fsSL https://raw.githubusercontent.com/0xjuanma/golazo/main/scripts/install.sh | bash
 ```
 
-### Manual installation
+or build from source,
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/0xjuanma/golazo.git
 cd golazo
-```
-
-2. Build the binary:
-```bash
-go build -o golazo ./cmd/golazo
-```
-
-3. (Optional) Move to your PATH:
-```bash
-sudo mv golazo /usr/local/bin/
+go build 
+./golazo
 ```
 
 ## Usage
@@ -42,9 +42,21 @@ Run the application:
 golazo
 ```
 
-### Options
+## Supported Leagues
 
-- `--mock`: Use mock data for all views instead of real API data
-  ```bash
-  golazo --mock
-  ```
+More leagues/competitions will be supported in the future.
+
+- 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League
+- 🇪🇸 La Liga
+- 🇩🇪 Bundesliga
+- 🇮🇹 Serie A
+- 🇫🇷 Ligue 1
+- 🏆 UEFA Champions League
+- 🏆 UEFA Europa League
+- 🇧🇷 Brasileirão Série A
+- 🇦🇷 Liga Profesional Argentina
+- 🇺🇸 MLS
+- 🏆 Copa Libertadores
+- 🏆 Copa America
+- 🇪🇺 UEFA Euro
+- 🌍 FIFA World Cup
