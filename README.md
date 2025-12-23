@@ -46,7 +46,7 @@ golazo
 
 ## Supported Leagues
 
-More leagues/competitions will be supported in the future.
+More leagues/competitions will be supported in the future. You can personalize your league selections in the Settings menu.
 
 - 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League
 - 🇪🇸 La Liga
