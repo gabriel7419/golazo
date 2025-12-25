@@ -108,6 +108,17 @@ func (m model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 				m.upcomingMatchesList.SetSize(availableWidth, 0)
 			}
 		}
+
+	case viewSettings:
+		// Settings list size is handled in RenderSettingsView
+		// but we update it here too for consistency
+		if m.settingsState != nil {
+			listHeight := m.height - 11 // Account for title, info, help
+			if listHeight < 5 {
+				listHeight = 5
+			}
+			m.settingsState.List.SetSize(48, listHeight)
+		}
 	}
 
 	return m, nil
@@ -846,6 +857,10 @@ func (m model) handleFilterMatches(msg list.FilterMatchesMsg) (tea.Model, tea.Cm
 		m.upcomingMatchesList, upCmd = m.upcomingMatchesList.Update(msg)
 		if upCmd != nil {
 			cmd = tea.Batch(cmd, upCmd)
+		}
+	case viewSettings:
+		if m.settingsState != nil {
+			m.settingsState.List, cmd = m.settingsState.List.Update(msg)
 		}
 	}
 
