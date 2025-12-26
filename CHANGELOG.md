@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Card Colors in All Events** - Yellow and red cards now display proper colors (yellow/red) instead of cyan in the FT view's All Events section
+- **Live Match Polling** - Poll refreshes now bypass cache to ensure fresh data every 90 seconds
 
 ## [0.5.0] - 2025-12-25
 

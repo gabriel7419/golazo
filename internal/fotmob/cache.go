@@ -142,6 +142,14 @@ func (c *ResponseCache) ClearDetailsCache() {
 	c.detailsCache = make(map[int]cachedDetails)
 }
 
+// ClearMatchDetails removes a specific match from the details cache.
+// Use this to force a refresh on next fetch for a specific match.
+func (c *ResponseCache) ClearMatchDetails(matchID int) {
+	c.detailsMu.Lock()
+	defer c.detailsMu.Unlock()
+	delete(c.detailsCache, matchID)
+}
+
 // GetLiveMatches retrieves cached live matches, returns nil if not cached or expired.
 func (c *ResponseCache) LiveMatches() []api.Match {
 	c.liveMu.RLock()

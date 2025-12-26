@@ -346,6 +346,13 @@ func (c *Client) MatchDetails(ctx context.Context, matchID int) (*api.MatchDetai
 	return details, nil
 }
 
+// MatchDetailsForceRefresh fetches match details, bypassing the cache.
+// Use this for polling live matches to ensure fresh data.
+func (c *Client) MatchDetailsForceRefresh(ctx context.Context, matchID int) (*api.MatchDetails, error) {
+	c.cache.ClearMatchDetails(matchID)
+	return c.MatchDetails(ctx, matchID)
+}
+
 // BatchMatchDetails retrieves details for multiple matches concurrently.
 // Uses caching and rate limiting to balance speed with API limits.
 // Returns a map of matchID -> details (nil if fetch failed).

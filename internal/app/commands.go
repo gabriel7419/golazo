@@ -180,6 +180,7 @@ func schedulePollSpinnerHide() tea.Cmd {
 
 // fetchPollMatchDetails fetches match details for a poll refresh.
 // This is called when pollTickMsg is received, with loading state visible.
+// Uses force refresh to bypass cache and ensure fresh data for live matches.
 func fetchPollMatchDetails(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
@@ -190,7 +191,8 @@ func fetchPollMatchDetails(client *fotmob.Client, matchID int, useMockData bool)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		details, err := client.MatchDetails(ctx, matchID)
+		// Force refresh to bypass cache - live matches need fresh data
+		details, err := client.MatchDetailsForceRefresh(ctx, matchID)
 		if err != nil {
 			return matchDetailsMsg{details: nil}
 		}
