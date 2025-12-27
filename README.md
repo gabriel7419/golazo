@@ -94,4 +94,5 @@ Notifications should work out-of-box on Windows 10/11.
 ---
 
 Powered by [Cobra](https://github.com/spf13/cobra) & the glamorous [Charmbracelet](https://github.com/charmbracelet).
+
 **Author:** [@0xjuanma](https://github.com/0xjuanma)
