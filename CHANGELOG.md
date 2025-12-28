@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.7.0] - 2025-12-28
+
+### Added
 - **Women's Leagues** - 10 new leagues: WSL, Liga F, Frauen-Bundesliga, Serie A Femminile, Première Ligue Féminine, NWSL, Women's UCL, UEFA Women's Euro, Women's DFB Pokal, Women's World Cup (Thanks @fkr!)
 - **Notification Icon** - Goal notifications now display the golazo logo on Linux and Windows
 
