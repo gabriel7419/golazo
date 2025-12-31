@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/0xjuanma/golazo/internal/data"
 )
 
 const (
@@ -26,7 +28,7 @@ type EmptyResultsCache struct {
 
 // EmptyCacheData is the JSON structure stored on disk.
 type EmptyCacheData struct {
-	Version      int                       `json:"version"`
+	Version      int                        `json:"version"`
 	EmptyResults map[string]EmptyCacheEntry `json:"empty_results"` // key: "YYYY-MM-DD:leagueID"
 }
 
@@ -36,20 +38,16 @@ type EmptyCacheEntry struct {
 }
 
 // NewEmptyResultsCache creates a new cache instance.
-// It loads existing data from ~/.golazo/empty-results.json if available.
+// It loads existing data from the config directory if available.
+// On Linux, uses XDG spec (~/.config/golazo). On other systems, uses ~/.golazo.
 func NewEmptyResultsCache() (*EmptyResultsCache, error) {
-	homeDir, err := os.UserHomeDir()
+	configDir, err := data.ConfigDir()
 	if err != nil {
 		return nil, err
 	}
 
-	cacheDir := filepath.Join(homeDir, ".golazo")
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return nil, err
-	}
-
 	cache := &EmptyResultsCache{
-		filePath: filepath.Join(cacheDir, EmptyCacheFileName),
+		filePath: filepath.Join(configDir, EmptyCacheFileName),
 		data: EmptyCacheData{
 			Version:      1,
 			EmptyResults: make(map[string]EmptyCacheEntry),
@@ -180,4 +178,3 @@ func (c *EmptyResultsCache) Stats() (total int, expired int) {
 	}
 	return
 }
-
