@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.10.0] - 2026-01-03
+
+### Added
 - **Embedded Goal Replay Links** - Goal events now display clickable 📺 indicators that link to replay videos
 - **Nix Flake support** - Added initial Nix flake for reproducible builds and development (Thanks @jcmuller)
 - **13 New Leagues** - J. League (Japan), K League 1 (South Korea), Indian Super League, A-League (Australia), Egyptian Premier League, Brasileirão Série B, Copa Sudamericana, UEFA Conference League, EFL League One, EFL League Two, Allsvenskan (Sweden), Superligaen (Denmark), Super League 1 (Greece)
