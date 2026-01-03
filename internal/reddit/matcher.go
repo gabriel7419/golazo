@@ -2,6 +2,7 @@ package reddit
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -165,38 +166,13 @@ func containsName(title, nameNorm string) bool {
 func buildMinutePattern(minute int) *regexp.Regexp {
 	// Match the minute with optional added time
 	// e.g., "45", "45'", "45+2", "45+2'"
-	patternStr := `\b` + intToStr(minute) + `(\+\d+)?'?\b`
+	patternStr := `\b` + strconv.Itoa(minute) + `(\+\d+)?'?\b`
 	compiled, err := regexp.Compile(patternStr)
 	if err != nil {
 		// Fallback to simple string match
-		return regexp.MustCompile(intToStr(minute))
+		return regexp.MustCompile(strconv.Itoa(minute))
 	}
 	return compiled
-}
-
-// intToStr converts an int to string (avoiding strconv import for simplicity).
-func intToStr(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n < 0 {
-		return "-" + intToStr(-n)
-	}
-
-	digits := []byte{}
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	return string(digits)
-}
-
-// min returns the minimum of two integers.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // MatchConfidence represents how confident we are in a match.
