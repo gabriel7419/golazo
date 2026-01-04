@@ -33,6 +33,7 @@ type rateLimiter struct {
 	minInterval   time.Duration
 	captchaCount  int
 	lastCaptchaTime time.Time
+	userAgentIndex int // Track which user agent to use next
 }
 
 func newRateLimiter(requestsPerMinute int) *rateLimiter {
@@ -70,6 +71,25 @@ func (r *rateLimiter) recordCaptchaError() {
 	r.lastCaptchaTime = time.Now()
 }
 
+// getNextUserAgent returns the next user agent in rotation
+func (r *rateLimiter) getNextUserAgent() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	agent := userAgents[r.userAgentIndex]
+	r.userAgentIndex = (r.userAgentIndex + 1) % len(userAgents)
+	return agent
+}
+
+// User agents to rotate through to reduce bot detection
+var userAgents = []string{
+	"golazo:v1.0.0 (by /u/golazo_app)", // Keep original for backwards compatibility
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+}
+
 // NewPublicJSONFetcher creates a new fetcher using public Reddit JSON API.
 func NewPublicJSONFetcher() *PublicJSONFetcher {
 	return &PublicJSONFetcher{
@@ -77,8 +97,8 @@ func NewPublicJSONFetcher() *PublicJSONFetcher {
 			Timeout: 10 * time.Second,
 		},
 		// Reddit requires a descriptive User-Agent
-		userAgent:   "golazo:v1.0.0 (by /u/golazo_app)",
-		rateLimiter: newRateLimiter(10), // 10 requests per minute for public API
+		userAgent:   userAgents[0], // Start with first agent
+		rateLimiter: newRateLimiter(5), // Reduced to 5 requests per minute to reduce CAPTCHA blocking
 	}
 }
 
@@ -106,7 +126,21 @@ func (f *PublicJSONFetcher) Search(query string, limit int, matchTime time.Time)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("User-Agent", f.userAgent)
+
+	// Use rotating user agents to reduce bot detection
+	req.Header.Set("User-Agent", f.rateLimiter.getNextUserAgent())
+
+	// Add realistic browser headers to further reduce CAPTCHA blocking
+	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9,*;q=0.5")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("DNT", "1")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Cache-Control", "max-age=0")
 
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
