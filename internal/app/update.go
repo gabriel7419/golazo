@@ -244,11 +244,10 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 		if goalsAdded > 0 {
 			m.debugLog(fmt.Sprintf("Added %d goals to pending queue for match %d (%s vs %s)",
 				goalsAdded, msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name))
+			// Start processing immediately when goals are added
+			cmds = append(cmds, processPendingGoalsCmd())
 		}
 	}
-
-	// Trigger background processing of pending goals
-	cmds = append(cmds, processPendingGoalsCmd())
 
 	// Cache for stats view (including during preload)
 	if m.currentView == viewStats || m.pendingSelection == 0 {
@@ -1226,8 +1225,8 @@ func (m model) handleProcessPendingGoals() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Process up to 5 goals at a time to maintain rate limits
-	const batchSize = 5
+	// Process up to 10 goals at a time to balance rate limits with responsiveness
+	const batchSize = 10
 	var goalsToProcess []reddit.GoalInfo
 	keysToRemove := make([]reddit.GoalLinkKey, 0, batchSize)
 
