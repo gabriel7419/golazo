@@ -244,7 +244,7 @@ func renderDateRangeSelector(width int, selected int) string {
 // leaguesLoaded and totalLeagues show loading progress during progressive loading.
 // pollingSpinner and isPolling control the small polling indicator in the right panel.
 // upcomingMatches are displayed at the bottom of the left panel (fixed, not scrollable).
-func RenderMultiPanelViewWithList(width, height int, listModel list.Model, details *api.MatchDetails, liveUpdates []string, sp spinner.Model, loading bool, randomSpinner *RandomCharSpinner, viewLoading bool, leaguesLoaded int, totalLeagues int, pollingSpinner *RandomCharSpinner, isPolling bool, upcomingMatches []MatchDisplay, goalLinks GoalLinksMap) string {
+func RenderMultiPanelViewWithList(width, height int, listModel list.Model, details *api.MatchDetails, liveUpdates []string, sp spinner.Model, loading bool, randomSpinner *RandomCharSpinner, viewLoading bool, leaguesLoaded int, totalLeagues int, pollingSpinner *RandomCharSpinner, isPolling bool, upcomingMatches []MatchDisplay, goalLinks GoalLinksMap, debugMode bool) string {
 	// Handle edge case: if width/height not set, use defaults
 	if width <= 0 {
 		width = 80
@@ -267,6 +267,8 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 		Height(spinnerHeight).
 		Align(lipgloss.Center).
 		AlignVertical(lipgloss.Center)
+
+	// Debug indicator moved to separate status line
 
 	var spinnerArea string
 	if viewLoading && randomSpinner != nil {
@@ -319,10 +321,22 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 		rightPanel,
 	)
 
-	// Combine spinner area and panels - this shifts panels down
+	// Add debug status line between spinner and panels (more stable than spinner area)
+	var debugStatusLine string
+	if debugMode {
+		debugStyle := lipgloss.NewStyle().
+			Foreground(neonCyan).
+			Bold(true).
+			Width(width).
+			Align(lipgloss.Center)
+		debugStatusLine = debugStyle.Render("[DEBUG MODE] Logs: ~/.golazo/golazo_debug.log")
+	}
+
+	// Combine spinner area, debug status line, and panels
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		spinnerArea,
+		debugStatusLine,
 		panels,
 	)
 
@@ -333,7 +347,7 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 // Rebuilt to match live view structure exactly: spinner at top, left panel (matches), right panel (details).
 // daysLoaded and totalDays show loading progress during progressive loading.
 // Note: Upcoming matches are now shown in the Live view instead.
-func RenderStatsViewWithList(width, height int, finishedList list.Model, details *api.MatchDetails, randomSpinner *RandomCharSpinner, viewLoading bool, dateRange int, daysLoaded int, totalDays int, goalLinks GoalLinksMap) string {
+func RenderStatsViewWithList(width, height int, finishedList list.Model, details *api.MatchDetails, randomSpinner *RandomCharSpinner, viewLoading bool, dateRange int, daysLoaded int, totalDays int, goalLinks GoalLinksMap, debugMode bool) string {
 	// Handle edge case: if width/height not set, use defaults
 	if width <= 0 {
 		width = 80
@@ -343,7 +357,6 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 	}
 
 	// Reserve 3 lines at top for spinner (always reserve to prevent layout shift)
-	// Match live view exactly
 	spinnerHeight := 3
 	availableHeight := height - spinnerHeight
 	if availableHeight < 10 {
@@ -357,6 +370,8 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 		Height(spinnerHeight).
 		Align(lipgloss.Center).
 		AlignVertical(lipgloss.Center)
+
+	// Debug indicator moved to separate status line
 
 	var spinnerArea string
 	if viewLoading && randomSpinner != nil {
@@ -408,11 +423,22 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 		rightPanel,
 	)
 
-	// Combine spinner area and panels - this shifts panels down
-	// Match live view exactly - use lipgloss.Left
+	// Add debug status line between spinner and panels (more stable than spinner area)
+	var debugStatusLine string
+	if debugMode {
+		debugStyle := lipgloss.NewStyle().
+			Foreground(neonCyan).
+			Bold(true).
+			Width(width).
+			Align(lipgloss.Center)
+		debugStatusLine = debugStyle.Render("[DEBUG MODE] Logs: ~/.golazo/golazo_debug.log")
+	}
+
+	// Combine spinner area, debug status line, and panels
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		spinnerArea,
+		debugStatusLine,
 		panels,
 	)
 

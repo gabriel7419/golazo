@@ -1,10 +1,14 @@
 package app
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/0xjuanma/golazo/internal/data"
 	"github.com/0xjuanma/golazo/internal/fotmob"
 	"github.com/0xjuanma/golazo/internal/reddit"
 	"github.com/0xjuanma/golazo/internal/ui"
@@ -191,6 +195,7 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 	// Add any uncached goals to the pending goals queue
 	// This replaces immediate fetching with queued background processing
 	if m.redditClient != nil && len(msg.details.Events) > 0 {
+		goalsAdded := 0
 		for _, event := range msg.details.Events {
 			if event.Type == "goal" {
 				key := reddit.GoalLinkKey{MatchID: msg.details.ID, Minute: event.Minute}
@@ -231,9 +236,14 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 							IsHomeTeam: isHome,
 							MatchTime:  matchTime,
 						}
+						goalsAdded++
 					}
 				}
 			}
+		}
+		if goalsAdded > 0 {
+			m.debugLog(fmt.Sprintf("Added %d goals to pending queue for match %d (%s vs %s)",
+				goalsAdded, msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name))
 		}
 	}
 
@@ -1042,31 +1052,177 @@ func max(a, b int) int {
 // handleGoalLinks processes goal replay links fetched from Reddit.
 func (m model) handleGoalLinks(msg goalLinksMsg) (tea.Model, tea.Cmd) {
 	if len(msg.links) == 0 {
+		m.debugLog("No goal links returned from Reddit search")
 		return m, nil
 	}
+
+	m.debugLog(fmt.Sprintf("Processing %d goal links from Reddit", len(msg.links)))
 
 	// Merge new links into the goal links map
 	if m.goalLinks == nil {
 		m.goalLinks = make(map[reddit.GoalLinkKey]*reddit.GoalLink)
 	}
 
+	validLinks := 0
+	failedLinks := 0
+
 	for key, link := range msg.links {
 		m.goalLinks[key] = link
-		// Temporary debug logging to console
-		if link != nil && link.URL != "" {
-			// Debug: check if links are being loaded
-			_ = key // avoid unused variable warning
+		if link != nil && link.URL != "" && link.URL != "__NOT_FOUND__" {
+			validLinks++
+			m.debugLog(fmt.Sprintf("Cached goal link: %d:%d → %s", key.MatchID, key.Minute, link.URL))
+		} else if link != nil && link.URL == "__NOT_FOUND__" {
+			failedLinks++
+			m.debugLog(fmt.Sprintf("No link found: %d:%d", key.MatchID, key.Minute))
 		}
 	}
 
+	m.debugLog(fmt.Sprintf("Goal link batch complete: %d valid, %d failed", validLinks, failedLinks))
+
 	return m, nil
+}
+
+// debugLog writes debug messages to a log file without interfering with the UI
+// Only writes when debug mode is enabled. Implements log rotation to prevent excessive growth.
+func (m model) debugLog(message string) {
+	if !m.debugMode {
+		return // Silently skip if debug mode is not enabled
+	}
+
+	configDir, err := data.ConfigDir()
+	if err != nil {
+		return // Silently fail if we can't get config dir
+	}
+
+	logFile := filepath.Join(configDir, "golazo_debug.log")
+
+	// Check file size and rotate if necessary
+	if err := m.rotateDebugLogIfNeeded(logFile); err != nil {
+		return // Silently fail if rotation fails
+	}
+
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return // Silently fail if we can't open log file
+	}
+	defer f.Close()
+
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	logLine := fmt.Sprintf("[%s] %s\n", timestamp, message)
+	f.WriteString(logLine)
+}
+
+// rotateDebugLogIfNeeded rotates the debug log file when it exceeds size limits
+// Keeps up to 3 rotated files and limits current log to ~1000 lines
+func (m model) rotateDebugLogIfNeeded(logFile string) error {
+	const maxSize = 10 * 1024 * 1024 // 10MB
+	const maxLines = 1000            // Keep ~1000 recent lines
+	const maxRotatedFiles = 3
+
+	// Check if file exists and get its size
+	info, err := os.Stat(logFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // File doesn't exist, no rotation needed
+		}
+		return err
+	}
+
+	fileSize := info.Size()
+
+	// If file is too large, rotate it
+	if fileSize > maxSize {
+		// Create rotated filename with timestamp
+		timestamp := time.Now().Format("2006-01-02_15-04-05")
+		rotatedFile := logFile + "." + timestamp + ".bak"
+
+		// Rename current log to rotated file
+		if err := os.Rename(logFile, rotatedFile); err != nil {
+			return err
+		}
+
+		// Clean up old rotated files (keep only maxRotatedFiles)
+		m.cleanupOldRotatedLogs(logFile, maxRotatedFiles)
+	}
+
+	// Always trim current log to maxLines to prevent immediate regrowth
+	return m.trimDebugLogToMaxLines(logFile, maxLines)
+}
+
+// cleanupOldRotatedLogs removes old rotated log files, keeping only the most recent ones
+func (m model) cleanupOldRotatedLogs(logFile string, maxFiles int) {
+	pattern := logFile + ".*.bak"
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return
+	}
+
+	// Sort by modification time (newest first)
+	type fileInfo struct {
+		path    string
+		modTime time.Time
+	}
+	var files []fileInfo
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil {
+			continue
+		}
+		files = append(files, fileInfo{match, info.ModTime()})
+	}
+
+	// Sort by modification time (newest first)
+	for i := 0; i < len(files)-1; i++ {
+		for j := i + 1; j < len(files); j++ {
+			if files[i].modTime.Before(files[j].modTime) {
+				files[i], files[j] = files[j], files[i]
+			}
+		}
+	}
+
+	// Remove files beyond maxFiles
+	for i := maxFiles; i < len(files); i++ {
+		os.Remove(files[i].path)
+	}
+}
+
+// trimDebugLogToMaxLines keeps only the last maxLines lines in the log file
+func (m model) trimDebugLogToMaxLines(logFile string, maxLines int) error {
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // File doesn't exist, nothing to trim
+		}
+		return err
+	}
+
+	lines := strings.Split(string(content), "\n")
+	if len(lines) <= maxLines+1 { // +1 for potential empty line at end
+		return nil // No trimming needed
+	}
+
+	// Keep only the last maxLines lines
+	lines = lines[len(lines)-maxLines-1:]
+
+	// Write back the trimmed content
+	return os.WriteFile(logFile, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // handleProcessPendingGoals processes goals from the pending queue in background batches.
 // This replaces reactive per-match fetching with efficient queued processing.
 func (m model) handleProcessPendingGoals() (tea.Model, tea.Cmd) {
+	// Debug: Log pending goals status
+	if len(m.pendingGoals) > 0 {
+		m.debugLog(fmt.Sprintf("Processing %d pending goals", len(m.pendingGoals)))
+	}
+
 	// Skip if no Reddit client or no pending goals
-	if m.redditClient == nil || len(m.pendingGoals) == 0 {
+	if m.redditClient == nil {
+		m.debugLog("No Reddit client available")
+		return m, nil
+	}
+	if len(m.pendingGoals) == 0 {
+		m.debugLog("No pending goals to process")
 		return m, nil
 	}
 
@@ -1084,10 +1240,14 @@ func (m model) handleProcessPendingGoals() (tea.Model, tea.Cmd) {
 		// Double-check it's still not cached (defensive programming)
 		if cached := m.redditClient.Cache().Get(key); cached != nil {
 			// Already cached, remove from pending
+			m.debugLog(fmt.Sprintf("Goal %d:%d already cached, removing from pending", key.MatchID, key.Minute))
 			delete(m.pendingGoals, key)
 			continue
 		}
 
+		m.debugLog(fmt.Sprintf("Searching Reddit for goal %d:%d (%s vs %s, %s %d')",
+			key.MatchID, key.Minute, goalInfo.HomeTeam, goalInfo.AwayTeam,
+			goalInfo.ScorerName, goalInfo.Minute))
 		goalsToProcess = append(goalsToProcess, goalInfo)
 		keysToRemove = append(keysToRemove, key)
 		count++
@@ -1097,6 +1257,8 @@ func (m model) handleProcessPendingGoals() (tea.Model, tea.Cmd) {
 	for _, key := range keysToRemove {
 		delete(m.pendingGoals, key)
 	}
+
+	m.debugLog(fmt.Sprintf("Sending %d goals to Reddit search", len(goalsToProcess)))
 
 	// If we found goals to process, fetch their links
 	if len(goalsToProcess) > 0 {
@@ -1167,6 +1329,9 @@ func (m model) handleCheckMissingGoalLinks() (tea.Model, tea.Cmd) {
 						IsHomeTeam: isHome,
 						MatchTime:  matchTime,
 					}
+					m.debugLog(fmt.Sprintf("Goal detected: %d:%d (%s %d', %s vs %s)",
+						key.MatchID, key.Minute, scorer, event.Minute,
+						m.matchDetails.HomeTeam.Name, m.matchDetails.AwayTeam.Name))
 				}
 			}
 		}

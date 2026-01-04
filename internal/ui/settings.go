@@ -125,7 +125,8 @@ const settingsBoxWidth = 48
 
 // RenderSettingsView renders the settings view for league customization.
 // Uses minimal styling consistent with the rest of the app (red/cyan neon theme).
-func RenderSettingsView(width, height int, state *SettingsState) string {
+// debugMode shows a debug indicator when enabled.
+func RenderSettingsView(width, height int, state *SettingsState, debugMode bool) string {
 	if state == nil {
 		return ""
 	}
@@ -146,6 +147,17 @@ func RenderSettingsView(width, height int, state *SettingsState) string {
 
 	// Update list dimensions
 	state.List.SetSize(listWidth, listHeight)
+
+	// Add debug indicator if debug mode is enabled
+	var debugIndicator string
+	if debugMode {
+		debugStyle := lipgloss.NewStyle().
+			Foreground(neonCyan).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(settingsBoxWidth)
+		debugIndicator = debugStyle.Render("[DEBUG MODE] Logs: ~/.golazo/golazo_debug.log") + "\n"
+	}
 
 	// Title - red like other panel titles
 	titleStyle := neonPanelTitleStyle.Width(settingsBoxWidth)
@@ -172,6 +184,7 @@ func RenderSettingsView(width, height int, state *SettingsState) string {
 	// Combine content (minimal, no borders)
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
+		debugIndicator,
 		title,
 		"",
 		listContent,

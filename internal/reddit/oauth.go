@@ -29,6 +29,16 @@ type OAuthClient struct {
 
 	// Rate limiting (OAuth allows 600 requests per hour)
 	rateLimiter *rateLimiter
+
+	// Debug logging
+	debugLogger DebugLogger
+}
+
+// debugLog is a helper method to safely call the debug logger if it exists
+func (c *OAuthClient) debugLog(message string) {
+	if c.debugLogger != nil {
+		c.debugLogger(message)
+	}
 }
 
 // OAuthResponse represents Reddit's OAuth token response.
@@ -61,6 +71,39 @@ func NewOAuthClient() (*OAuthClient, error) {
 		username:     username,
 		password:     password,
 		rateLimiter:  newRateLimiter(10), // 10 requests/minute (well under 600/hour limit)
+		debugLogger:  nil,                // No debug logger by default
+	}
+
+	// Try to authenticate immediately
+	if err := client.authenticate(); err != nil {
+		return nil, fmt.Errorf("OAuth authentication failed: %w", err)
+	}
+
+	return client, nil
+}
+
+// NewOAuthClientWithDebug creates a new OAuth client with debug logging enabled.
+func NewOAuthClientWithDebug(debugLogger DebugLogger) (*OAuthClient, error) {
+	clientID := os.Getenv("REDDIT_CLIENT_ID")
+	clientSecret := os.Getenv("REDDIT_CLIENT_SECRET")
+	username := os.Getenv("REDDIT_USERNAME")
+	password := os.Getenv("REDDIT_PASSWORD")
+
+	// If any OAuth credentials are missing, return nil (fallback to public API)
+	if clientID == "" || clientSecret == "" || username == "" || password == "" {
+		return nil, nil
+	}
+
+	client := &OAuthClient{
+		httpClient: &http.Client{
+			Timeout: 15 * time.Second, // Slightly longer timeout for OAuth
+		},
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		username:     username,
+		password:     password,
+		rateLimiter:  newRateLimiter(10), // 10 requests/minute (well under 600/hour limit)
+		debugLogger:  debugLogger,
 	}
 
 	// Try to authenticate immediately
@@ -74,6 +117,7 @@ func NewOAuthClient() (*OAuthClient, error) {
 // authenticate performs OAuth authentication with Reddit.
 // Obtains access and refresh tokens for app-only API access.
 func (c *OAuthClient) authenticate() error {
+	c.debugLog("Starting Reddit OAuth authentication")
 	data := url.Values{}
 	data.Set("grant_type", "password")
 	data.Set("username", c.username)
@@ -81,6 +125,7 @@ func (c *OAuthClient) authenticate() error {
 
 	req, err := http.NewRequest("POST", "https://www.reddit.com/api/v1/access_token", strings.NewReader(data.Encode()))
 	if err != nil {
+		c.debugLog(fmt.Sprintf("OAuth authentication failed: create auth request: %v", err))
 		return fmt.Errorf("create auth request: %w", err)
 	}
 
@@ -90,17 +135,20 @@ func (c *OAuthClient) authenticate() error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.debugLog(fmt.Sprintf("OAuth authentication failed: auth request failed: %v", err))
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		c.debugLog(fmt.Sprintf("OAuth authentication failed: status %d: %s", resp.StatusCode, string(body)))
 		return fmt.Errorf("auth failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var oauthResp OAuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&oauthResp); err != nil {
+		c.debugLog(fmt.Sprintf("OAuth authentication failed: parse auth response: %v", err))
 		return fmt.Errorf("parse auth response: %w", err)
 	}
 
@@ -110,17 +158,20 @@ func (c *OAuthClient) authenticate() error {
 	c.tokenExpiry = time.Now().Add(time.Duration(oauthResp.ExpiresIn) * time.Second)
 	c.tokenMutex.Unlock()
 
+	c.debugLog("OAuth authentication successful")
 	return nil
 }
 
 // refreshToken refreshes the access token using the refresh token.
 func (c *OAuthClient) refreshToken() error {
+	c.debugLog("Refreshing OAuth access token")
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("refresh_token", c.refreshTokenValue)
 
 	req, err := http.NewRequest("POST", "https://www.reddit.com/api/v1/access_token", strings.NewReader(data.Encode()))
 	if err != nil {
+		c.debugLog(fmt.Sprintf("OAuth token refresh failed: create refresh request: %v", err))
 		return fmt.Errorf("create refresh request: %w", err)
 	}
 
@@ -130,6 +181,7 @@ func (c *OAuthClient) refreshToken() error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		c.debugLog(fmt.Sprintf("OAuth token refresh failed: refresh request failed: %v", err))
 		return fmt.Errorf("refresh request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -137,11 +189,13 @@ func (c *OAuthClient) refreshToken() error {
 	if resp.StatusCode != http.StatusOK {
 		// If refresh fails, we'll need to re-authenticate
 		body, _ := io.ReadAll(resp.Body)
+		c.debugLog(fmt.Sprintf("OAuth token refresh failed: status %d: %s", resp.StatusCode, string(body)))
 		return fmt.Errorf("token refresh failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var oauthResp OAuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&oauthResp); err != nil {
+		c.debugLog(fmt.Sprintf("OAuth token refresh failed: parse refresh response: %v", err))
 		return fmt.Errorf("parse refresh response: %w", err)
 	}
 
@@ -154,6 +208,7 @@ func (c *OAuthClient) refreshToken() error {
 	c.tokenExpiry = time.Now().Add(time.Duration(oauthResp.ExpiresIn) * time.Second)
 	c.tokenMutex.Unlock()
 
+	c.debugLog("OAuth token refresh successful")
 	return nil
 }
 
@@ -164,6 +219,7 @@ func (c *OAuthClient) ensureValidToken() error {
 	c.tokenMutex.RUnlock()
 
 	if !tokenValid {
+		c.debugLog("OAuth token expired or missing, attempting to refresh/re-authenticate")
 		c.tokenMutex.Lock()
 		defer c.tokenMutex.Unlock()
 
@@ -171,12 +227,15 @@ func (c *OAuthClient) ensureValidToken() error {
 		if c.accessToken == "" || time.Now().After(c.tokenExpiry.Add(-5*time.Minute)) {
 			if c.refreshTokenValue != "" {
 				// Try to refresh token
+				c.debugLog("Attempting OAuth token refresh")
 				if err := c.refreshToken(); err != nil {
+					c.debugLog(fmt.Sprintf("OAuth token refresh failed, attempting full authentication: %v", err))
 					// Refresh failed, try full authentication
 					return c.authenticate()
 				}
 			} else {
 				// No refresh token, authenticate from scratch
+				c.debugLog("No refresh token available, attempting full OAuth authentication")
 				return c.authenticate()
 			}
 		}

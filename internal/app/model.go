@@ -2,7 +2,13 @@
 package app
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/0xjuanma/golazo/internal/data"
 	"github.com/0xjuanma/golazo/internal/fotmob"
 	"github.com/0xjuanma/golazo/internal/notify"
 	"github.com/0xjuanma/golazo/internal/reddit"
@@ -77,7 +83,8 @@ type model struct {
 
 	// Configuration
 	useMockData    bool
-	statsDateRange int // 1, 3, or 5 days (default: 1)
+	debugMode      bool // Enable debug logging to file
+	statsDateRange int  // 1, 3, or 5 days (default: 1)
 
 	// Settings view state
 	settingsState *ui.SettingsState
@@ -100,7 +107,8 @@ type model struct {
 
 // New creates a new application model with default values.
 // useMockData determines whether to use mock data instead of real API data.
-func New(useMockData bool) model {
+// debugMode enables debug logging to a file.
+func New(useMockData bool, debugMode bool) model {
 	s := spinner.New()
 	s.Spinner = spinner.Line
 	s.Style = ui.SpinnerStyle()
@@ -152,12 +160,31 @@ func New(useMockData bool) model {
 	upcomingList.FilterInput.Cursor.Style = filterCursorStyle
 
 	// Initialize Reddit client (best-effort, nil if fails)
-	redditClient, _ := reddit.NewClient()
+	var redditClient *reddit.Client
+	if debugMode {
+		redditClient, _ = reddit.NewClientWithDebug(func(message string) {
+			// This will be called by the Reddit client for debug logging
+			// We'll create a model instance to access debugLog, but for now just log directly
+			// This is a bit of a hack, but it works for debug logging
+			configDir, _ := data.ConfigDir()
+			if configDir != "" {
+				logFile := filepath.Join(configDir, "golazo_debug.log")
+				f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err == nil {
+					defer f.Close()
+					f.WriteString(fmt.Sprintf("%s %s\n", time.Now().Format("2006-01-02 15:04:05"), message))
+				}
+			}
+		})
+	} else {
+		redditClient, _ = reddit.NewClient()
+	}
 
 	return model{
 		currentView:         viewMain,
 		matchDetailsCache:   make(map[int]*api.MatchDetails),
 		useMockData:         useMockData,
+		debugMode:           debugMode,
 		fotmobClient:        fotmob.NewClient(),
 		parser:              fotmob.NewLiveUpdateParser(),
 		redditClient:        redditClient,

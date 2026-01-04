@@ -21,6 +21,7 @@ var Version = "dev"
 var mockFlag bool
 var updateFlag bool
 var versionFlag bool
+var debugFlag bool
 
 var rootCmd = &cobra.Command{
 	Use:   "golazo",
@@ -37,7 +38,7 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		p := tea.NewProgram(app.New(mockFlag), tea.WithAltScreen())
+		p := tea.NewProgram(app.New(mockFlag, debugFlag), tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 			os.Exit(1)
@@ -90,6 +91,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().BoolVar(&mockFlag, "mock", false, "Use mock data for all views instead of real API data")
+	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logging to ~/.golazo/golazo_debug.log")
 	rootCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "Update golazo to the latest version")
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Display version information")
 }

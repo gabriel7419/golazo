@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// DebugLogger is a function type for debug logging
+type DebugLogger func(message string)
+
 // Fetcher defines the interface for fetching data from Reddit.
 // This allows for easy swapping between public JSON API and OAuth API.
 type Fetcher interface {
@@ -192,6 +195,14 @@ type Client struct {
 	oauthFetcher  *OAuthClient // Preferred: higher rate limits, no CAPTCHAs
 	publicFetcher Fetcher      // Fallback: public API with limitations
 	cache         *GoalLinkCache
+	debugLogger   DebugLogger  // Optional debug logger function
+}
+
+// debugLog is a helper method to safely call the debug logger if it exists
+func (c *Client) debugLog(message string) {
+	if c.debugLogger != nil {
+		c.debugLogger(message)
+	}
 }
 
 // NewClient creates a new Reddit client with OAuth (preferred) or public API (fallback).
@@ -214,6 +225,31 @@ func NewClient() (*Client, error) {
 		oauthFetcher:  oauthClient, // May be nil if OAuth not configured
 		publicFetcher: publicFetcher,
 		cache:         cache,
+		debugLogger:   nil,         // No debug logger by default
+	}, nil
+}
+
+// NewClientWithDebug creates a new Reddit client with debug logging enabled.
+func NewClientWithDebug(debugLogger DebugLogger) (*Client, error) {
+	cache, err := NewGoalLinkCache()
+	if err != nil {
+		return nil, fmt.Errorf("create cache: %w", err)
+	}
+
+	// Try OAuth first (higher rate limits, no CAPTCHAs)
+	oauthClient, err := NewOAuthClientWithDebug(debugLogger)
+	if err != nil {
+		return nil, fmt.Errorf("OAuth client initialization failed: %w", err)
+	}
+
+	// Always initialize public API as fallback
+	publicFetcher := NewPublicJSONFetcher()
+
+	return &Client{
+		oauthFetcher:  oauthClient, // May be nil if OAuth not configured
+		publicFetcher: publicFetcher,
+		cache:         cache,
+		debugLogger:   debugLogger,
 	}, nil
 }
 
@@ -224,6 +260,7 @@ func NewClientWithFetcher(fetcher Fetcher, cache *GoalLinkCache) *Client {
 		oauthFetcher:  nil, // No OAuth in test mode
 		publicFetcher: fetcher,
 		cache:         cache,
+		debugLogger:   nil,
 	}
 }
 
@@ -325,16 +362,24 @@ func (c *Client) GoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
 func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
 	// Try OAuth API first if available (no CAPTCHA issues, higher rate limits)
 	if c.oauthFetcher != nil && c.oauthFetcher.IsAvailable() {
-		return c.searchForGoalOnce(goal, c.oauthFetcher)
+		c.debugLog(fmt.Sprintf("Using OAuth API for goal %d:%d", goal.MatchID, goal.Minute))
+		result, err := c.searchForGoalOnce(goal, c.oauthFetcher)
+		if err != nil {
+			c.debugLog(fmt.Sprintf("OAuth API failed for goal %d:%d: %v", goal.MatchID, goal.Minute, err))
+			return nil, err
+		}
+		return result, nil
 	}
 
 	// Fall back to public API with retry logic for CAPTCHA handling
+	c.debugLog(fmt.Sprintf("Using public API for goal %d:%d (OAuth not available)", goal.MatchID, goal.Minute))
 	maxRetries := 3
 	baseDelay := 30 * time.Second
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			delay := time.Duration(attempt) * baseDelay
+			c.debugLog(fmt.Sprintf("Retrying goal %d:%d in %v (attempt %d/%d)", goal.MatchID, goal.Minute, delay, attempt+1, maxRetries))
 			time.Sleep(delay)
 		}
 
@@ -348,12 +393,15 @@ func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
 			strings.Contains(err.Error(), "blocking requests") ||
 			strings.Contains(err.Error(), "rate limit") ||
 			strings.Contains(err.Error(), "HTML instead of JSON") {
+			c.debugLog(fmt.Sprintf("Reddit API error for goal %d:%d (attempt %d/%d): %v", goal.MatchID, goal.Minute, attempt+1, maxRetries, err))
 			if attempt < maxRetries-1 {
 				continue
 			}
+			c.debugLog(fmt.Sprintf("Max retries exceeded for goal %d:%d: %v", goal.MatchID, goal.Minute, err))
 		}
 
 		// For other errors or if we've exhausted retries, return the error
+		c.debugLog(fmt.Sprintf("Non-retryable error for goal %d:%d: %v", goal.MatchID, goal.Minute, err))
 		return nil, err
 	}
 

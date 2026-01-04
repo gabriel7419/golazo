@@ -9,7 +9,7 @@ import (
 func (m model) View() string {
 	switch m.currentView {
 	case viewMain:
-		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading)
+		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading, m.debugMode)
 
 	case viewLiveMatches:
 		m.ensureLiveListSize()
@@ -28,6 +28,7 @@ func (m model) View() string {
 			m.polling,
 			m.liveUpcomingMatches,
 			m.buildGoalLinksMap(),
+			m.debugMode,
 		)
 
 	case viewStats:
@@ -43,13 +44,14 @@ func (m model) View() string {
 			m.statsDaysLoaded,
 			m.statsTotalDays,
 			m.buildGoalLinksMap(),
+			m.debugMode,
 		)
 
 	case viewSettings:
-		return ui.RenderSettingsView(m.width, m.height, m.settingsState)
+		return ui.RenderSettingsView(m.width, m.height, m.settingsState, m.debugMode)
 
 	default:
-		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading)
+		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading, m.debugMode)
 	}
 }
 
