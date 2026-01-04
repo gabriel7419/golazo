@@ -25,7 +25,7 @@ func main() {
 	defer cancel()
 
 	startTime := time.Now()
-	statsData, err := client.FetchStatsData(ctx)
+	statsData, err := client.StatsData(ctx)
 	elapsed := time.Since(startTime)
 
 	if err != nil {

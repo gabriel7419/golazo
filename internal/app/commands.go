@@ -370,7 +370,7 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 		}
 
 		// Fetch links for all goals (uses cache internally)
-		links := redditClient.GetGoalLinks(goals)
+		links := redditClient.GoalLinks(goals)
 
 		return goalLinksMsg{matchID: details.ID, links: links}
 	}

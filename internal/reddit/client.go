@@ -148,9 +148,9 @@ func NewClientWithFetcher(fetcher Fetcher, cache *GoalLinkCache) *Client {
 	}
 }
 
-// GetGoalLink retrieves a cached goal link or fetches from Reddit if not cached.
+// GoalLink retrieves a cached goal link or fetches from Reddit if not cached.
 // Returns nil if the goal link was previously searched but not found.
-func (c *Client) GetGoalLink(goal GoalInfo) (*GoalLink, error) {
+func (c *Client) GoalLink(goal GoalInfo) (*GoalLink, error) {
 	key := GoalLinkKey{MatchID: goal.MatchID, Minute: goal.Minute}
 
 	// Check cache first (includes "not found" markers)
@@ -186,9 +186,9 @@ const BatchSize = 5
 // BatchDelay is the delay between batches to avoid rate limiting.
 const BatchDelay = 2 * time.Second
 
-// GetGoalLinks retrieves links for multiple goals, using cache where available.
+// GoalLinks retrieves links for multiple goals, using cache where available.
 // Goals are de-duplicated and batched to avoid rate limiting.
-func (c *Client) GetGoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
+func (c *Client) GoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
 	results := make(map[GoalLinkKey]*GoalLink)
 
 	// De-duplicate goals by key and filter out already-cached goals
@@ -231,7 +231,7 @@ func (c *Client) GetGoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
 
 		for _, goal := range uncachedGoals[i:end] {
 			key := GoalLinkKey{MatchID: goal.MatchID, Minute: goal.Minute}
-			link, err := c.GetGoalLink(goal)
+			link, err := c.GoalLink(goal)
 			if err == nil && link != nil {
 				results[key] = link
 			}
@@ -261,14 +261,14 @@ func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
 			}, nil
 		}
 	}
-	
+
 	// Strategy 1 didn't find a match, try broader searches
 	// Only try one additional strategy to balance coverage vs rate limiting
 	var allResults []SearchResult
 	if err == nil {
 		allResults = append(allResults, results1...)
 	}
-	
+
 	// Strategy 2: Try with just the scoring team + minute
 	// Determine which team scored
 	scoringTeam := goal.AwayTeam
@@ -280,7 +280,7 @@ func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
 	if err == nil {
 		allResults = append(allResults, results2...)
 	}
-	
+
 	// Remove duplicates based on URL
 	seen := make(map[string]bool)
 	uniqueResults := make([]SearchResult, 0, len(allResults))

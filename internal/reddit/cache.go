@@ -113,8 +113,8 @@ func (c *GoalLinkCache) Set(link GoalLink) error {
 	return c.saveLocked()
 }
 
-// GetAll returns all cached goal links for a match.
-func (c *GoalLinkCache) GetAll(matchID int) []GoalLink {
+// All returns all cached goal links for a match.
+func (c *GoalLinkCache) All(matchID int) []GoalLink {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
