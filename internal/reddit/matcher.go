@@ -101,6 +101,12 @@ func normalizeTeamName(name string) string {
 	// Convert to lowercase
 	norm := strings.ToLower(name)
 
+	// Remove common prefixes (e.g., "fc barcelona" -> "barcelona")
+	prefixes := []string{"fc ", "cf ", "sc ", "afc ", "ac ", "as "}
+	for _, prefix := range prefixes {
+		norm = strings.TrimPrefix(norm, prefix)
+	}
+
 	// Remove common suffixes
 	suffixes := []string{" fc", " cf", " sc", " afc", " united", " city"}
 	for _, suffix := range suffixes {
@@ -122,20 +128,37 @@ func normalizeName(name string) string {
 }
 
 // containsTeamName checks if a title contains a team name (or part of it).
+// Normalizes the title first to handle variations like "FC Barcelona" vs "Barcelona".
 func containsTeamName(title, teamNorm string) bool {
-	// First try exact match
-	if strings.Contains(title, teamNorm) {
+	// Normalize the title for comparison (handles "FC Barcelona" -> "barcelona")
+	titleNorm := normalizeTeamName(title)
+
+	// First try exact match on normalized title
+	if strings.Contains(titleNorm, teamNorm) {
 		return true
 	}
 
 	// Try matching individual words (for multi-word team names)
 	words := strings.Fields(teamNorm)
 	if len(words) > 1 {
-		// Check if the main word (usually the first significant word) is present
+		// Check if significant words are present
 		for _, word := range words {
-			if len(word) > 3 && strings.Contains(title, word) {
+			if len(word) > 3 && strings.Contains(titleNorm, word) {
 				return true
 			}
+		}
+	}
+
+	// Also check original title (case-insensitive) for better coverage
+	titleLower := strings.ToLower(title)
+	if strings.Contains(titleLower, teamNorm) {
+		return true
+	}
+
+	// Check individual words in original title too
+	for _, word := range words {
+		if len(word) > 3 && strings.Contains(titleLower, word) {
+			return true
 		}
 	}
 

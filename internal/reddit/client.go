@@ -243,17 +243,56 @@ func (c *Client) GetGoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
 
 // searchForGoal searches Reddit for a specific goal.
 func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
-	// Build search query with team names and minute
-	// Posts usually follow: "Team A [1] - 0 Team B - Player Name 45'"
-	query := fmt.Sprintf("%s %s %d'", goal.HomeTeam, goal.AwayTeam, goal.Minute)
-
-	results, err := c.fetcher.Search(query, 10, goal.MatchTime)
-	if err != nil {
-		return nil, fmt.Errorf("search reddit: %w", err)
+	// Strategy 1: Both teams + minute (most specific, try first)
+	query1 := fmt.Sprintf("%s %s %d'", goal.HomeTeam, goal.AwayTeam, goal.Minute)
+	results1, err := c.fetcher.Search(query1, 15, goal.MatchTime)
+	if err == nil {
+		// Check if we found a good match with the first strategy
+		match := findBestMatch(results1, goal)
+		if match != nil {
+			// Found a match, return it immediately to avoid additional API calls
+			return &GoalLink{
+				MatchID:   goal.MatchID,
+				Minute:    goal.Minute,
+				URL:       match.URL,
+				Title:     match.Title,
+				PostURL:   match.PostURL,
+				FetchedAt: time.Now(),
+			}, nil
+		}
+	}
+	
+	// Strategy 1 didn't find a match, try broader searches
+	// Only try one additional strategy to balance coverage vs rate limiting
+	var allResults []SearchResult
+	if err == nil {
+		allResults = append(allResults, results1...)
+	}
+	
+	// Strategy 2: Try with just the scoring team + minute
+	// Determine which team scored
+	scoringTeam := goal.AwayTeam
+	if goal.IsHomeTeam {
+		scoringTeam = goal.HomeTeam
+	}
+	query2 := fmt.Sprintf("%s %d'", scoringTeam, goal.Minute)
+	results2, err := c.fetcher.Search(query2, 15, goal.MatchTime)
+	if err == nil {
+		allResults = append(allResults, results2...)
+	}
+	
+	// Remove duplicates based on URL
+	seen := make(map[string]bool)
+	uniqueResults := make([]SearchResult, 0, len(allResults))
+	for _, result := range allResults {
+		if !seen[result.URL] {
+			seen[result.URL] = true
+			uniqueResults = append(uniqueResults, result)
+		}
 	}
 
 	// Find the best matching result
-	match := findBestMatch(results, goal)
+	match := findBestMatch(uniqueResults, goal)
 	if match == nil {
 		return nil, nil // No match found, but not an error
 	}
