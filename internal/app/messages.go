@@ -66,3 +66,7 @@ type goalLinksMsg struct {
 	matchID int
 	links   map[reddit.GoalLinkKey]*reddit.GoalLink
 }
+
+// checkMissingGoalLinksMsg triggers checking for goals that exist in match details
+// but don't have cached replay links. Sent periodically or on view changes.
+type checkMissingGoalLinksMsg struct{}

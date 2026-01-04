@@ -108,6 +108,7 @@ func (m *model) ensureStatsSpinner() *ui.RandomCharSpinner {
 }
 
 // buildGoalLinksMap converts the model's goal links to a UI-friendly map.
+// Also triggers fetching for any goals that exist in match details but are not cached.
 func (m *model) buildGoalLinksMap() ui.GoalLinksMap {
 	if len(m.goalLinks) == 0 {
 		return nil
@@ -123,6 +124,7 @@ func (m *model) buildGoalLinksMap() ui.GoalLinksMap {
 	}
 	return result
 }
+
 
 // Ensure reddit.GoalLinkKey is used (avoid unused import)
 var _ reddit.GoalLinkKey

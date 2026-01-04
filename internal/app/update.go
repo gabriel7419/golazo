@@ -67,6 +67,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case goalLinksMsg:
 		return m.handleGoalLinks(msg)
 
+	case checkMissingGoalLinksMsg:
+		return m.handleCheckMissingGoalLinks()
+
 	default:
 		// Fallback handler for ui.TickMsg type assertion
 		if _, ok := msg.(ui.TickMsg); ok {
@@ -196,6 +199,10 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, fetchGoalLinks(m.redditClient, msg.details))
 		}
 	}
+
+	// Also check for any goals that might be missing from cache (defensive programming)
+	// This handles cases where match data was updated after initial fetch
+	cmds = append(cmds, checkMissingGoalLinksCmd())
 
 	// Cache for stats view (including during preload)
 	if m.currentView == viewStats || m.pendingSelection == 0 {
@@ -839,6 +846,8 @@ func (m model) handleMainViewCheck(msg mainViewCheckMsg) (tea.Model, tea.Cmd) {
 			// Load details from cache if available, otherwise start fetch
 			if cached, ok := m.matchDetailsCache[m.matches[0].ID]; ok {
 				m.matchDetails = cached
+				// Check for any goals that might be missing from cache
+				cmds = append(cmds, checkMissingGoalLinksCmd())
 			} else if m.matchDetails == nil {
 				// Details not loaded yet, start loading
 				updatedModel, loadCmd := m.loadStatsMatchDetails(m.matches[0].ID)
@@ -864,6 +873,8 @@ func (m model) handleMainViewCheck(msg mainViewCheckMsg) (tea.Model, tea.Cmd) {
 		if len(m.matches) > 0 {
 			m.liveMatchesList.Select(0)
 		}
+
+		// Don't auto-check on view switch - only when actually viewing specific match details
 
 		// Keep spinners running if still loading
 		if m.liveViewLoading {
@@ -1008,6 +1019,86 @@ func (m model) handleGoalLinks(msg goalLinksMsg) (tea.Model, tea.Cmd) {
 			// Debug: check if links are being loaded
 			_ = key // avoid unused variable warning
 		}
+	}
+
+	return m, nil
+}
+
+// handleCheckMissingGoalLinks checks if current match details have goals that don't have cached links,
+// and triggers fetching for those goals. This ensures that as new goals appear in match data,
+// their replay links are automatically fetched.
+func (m model) handleCheckMissingGoalLinks() (tea.Model, tea.Cmd) {
+	// Only check if we have match details and a Reddit client
+	if m.matchDetails == nil || m.redditClient == nil {
+		return m, nil
+	}
+
+	// Skip if no goals in this match
+	hasGoals := false
+	for _, event := range m.matchDetails.Events {
+		if event.Type == "goal" {
+			hasGoals = true
+			break
+		}
+	}
+	if !hasGoals {
+		return m, nil
+	}
+
+	// Find goals in match details that don't have cached links
+	var missingGoals []reddit.GoalInfo
+
+	for _, event := range m.matchDetails.Events {
+		if event.Type != "goal" {
+			continue
+		}
+
+		// Check if this goal is already cached (found or not found)
+		key := reddit.GoalLinkKey{MatchID: m.matchDetails.ID, Minute: event.Minute}
+		if cached := m.redditClient.Cache().Get(key); cached != nil {
+			// Already cached (either found or not found), skip
+			continue
+		}
+
+		// Goal not cached, extract info and add to missing goals
+		scorer := ""
+		if event.Player != nil {
+			scorer = *event.Player
+		}
+
+		isHome := event.Team.ID == m.matchDetails.HomeTeam.ID
+
+		homeScore := 0
+		awayScore := 0
+		if m.matchDetails.HomeScore != nil {
+			homeScore = *m.matchDetails.HomeScore
+		}
+		if m.matchDetails.AwayScore != nil {
+			awayScore = *m.matchDetails.AwayScore
+		}
+
+		matchTime := time.Now()
+		if m.matchDetails.MatchTime != nil {
+			matchTime = *m.matchDetails.MatchTime
+		}
+
+		missingGoals = append(missingGoals, reddit.GoalInfo{
+			MatchID:    m.matchDetails.ID,
+			HomeTeam:   m.matchDetails.HomeTeam.Name,
+			AwayTeam:   m.matchDetails.AwayTeam.Name,
+			ScorerName: scorer,
+			Minute:     event.Minute,
+			HomeScore:  homeScore,
+			AwayScore:  awayScore,
+			IsHomeTeam: isHome,
+			MatchTime:  matchTime,
+		})
+	}
+
+	// Only fetch if we found missing goals AND it's been at least 30 seconds since last check
+	// This prevents excessive API calls when rapidly switching views
+	if len(missingGoals) > 0 {
+		return m, fetchGoalLinksForGoals(m.redditClient, missingGoals)
 	}
 
 	return m, nil
