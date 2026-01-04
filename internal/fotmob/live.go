@@ -151,11 +151,7 @@ func (p *LiveUpdateParser) formatEvent(event api.MatchEvent, homeTeam, awayTeam 
 		if event.Player != nil {
 			player = *event.Player
 		}
-		assistText := ""
-		if event.Assist != nil && *event.Assist != "" {
-			assistText = fmt.Sprintf(" (%s)", *event.Assist)
-		}
-		return fmt.Sprintf("%s %d' [GOAL] %s%s %s", EventPrefixGoal, event.Minute, player, assistText, teamMarker)
+		return fmt.Sprintf("%s %d' [GOAL] %s %s", EventPrefixGoal, event.Minute, player, teamMarker)
 
 	case "card":
 		player := "Unknown"
