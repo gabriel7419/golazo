@@ -989,9 +989,9 @@ func (m model) handleGoalLinks(msg goalLinksMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// GetGoalReplayURL returns the replay URL for a goal if available.
+// GoalReplayURL returns the replay URL for a goal if available.
 // Returns empty string if no replay link is cached.
-func (m *model) GetGoalReplayURL(matchID, minute int) string {
+func (m *model) GoalReplayURL(matchID, minute int) string {
 	if m.goalLinks == nil {
 		return ""
 	}

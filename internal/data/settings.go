@@ -157,9 +157,9 @@ var DefaultLeagueIDs = []int{
 	42, // UEFA Champions League
 }
 
-// GetActiveLeagueIDs returns the league IDs that should be used for API calls.
+// ActiveLeagueIDs returns the league IDs that should be used for API calls.
 // If no leagues are selected in settings, returns the default leagues (not all).
-func GetActiveLeagueIDs() []int {
+func ActiveLeagueIDs() []int {
 	settings, err := LoadSettings()
 	if err != nil || len(settings.SelectedLeagues) == 0 {
 		// Return default leagues for efficient API usage
@@ -169,8 +169,8 @@ func GetActiveLeagueIDs() []int {
 	return settings.SelectedLeagues
 }
 
-// GetAllLeagueIDs returns all supported league IDs (used as fallback).
-func GetAllLeagueIDs() []int {
+// AllLeagueIDs returns all supported league IDs (used as fallback).
+func AllLeagueIDs() []int {
 	ids := make([]int, len(AllSupportedLeagues))
 	for i, league := range AllSupportedLeagues {
 		ids[i] = league.ID

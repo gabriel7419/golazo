@@ -9,7 +9,7 @@ import (
 )
 
 // StatsData holds all matches data for the stats view.
-// This is returned by FetchStatsData and contains both finished and upcoming matches.
+// This is returned by StatsData and contains both finished and upcoming matches.
 type StatsData struct {
 	// AllFinished contains finished matches for all fetched days (5 days by default)
 	AllFinished []api.Match
@@ -23,7 +23,7 @@ type StatsData struct {
 // 5 days ensures we have data even during mid-week breaks.
 const StatsDataDays = 5
 
-// FetchStatsData fetches all stats data in one call: 5 days of finished matches + today's upcoming.
+// StatsData fetches all stats data in one call: 5 days of finished matches + today's upcoming.
 // This is the primary API for the stats view - always fetches 5 days, then filters client-side.
 //
 // OPTIMIZATION: Only queries "fixtures" tab for today (upcoming matches).
@@ -38,7 +38,7 @@ const StatsDataDays = 5
 // - Single fetch pattern (always 5 days)
 // - Covers mid-week breaks when no matches scheduled
 // - Instant switching between Today/5d views after initial load
-func (c *Client) FetchStatsData(ctx context.Context) (*StatsData, error) {
+func (c *Client) StatsData(ctx context.Context) (*StatsData, error) {
 	today := time.Now().UTC()
 	todayStr := today.Format("2006-01-02")
 

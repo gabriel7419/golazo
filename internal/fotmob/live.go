@@ -46,7 +46,7 @@ func (c *Client) LiveMatches(ctx context.Context) ([]api.Match, error) {
 // LiveMatchesForceRefresh fetches live matches, bypassing the cache.
 // Use this for periodic refreshes to get the latest data.
 func (c *Client) LiveMatchesForceRefresh(ctx context.Context) ([]api.Match, error) {
-	c.cache.ClearLiveCache()
+	c.cache.ClearLive()
 	return c.LiveMatches(ctx)
 }
 
@@ -79,12 +79,12 @@ func (c *Client) LiveMatchesForLeague(ctx context.Context, leagueID int) ([]api.
 
 // TotalLeagues returns the number of active leagues (respects user settings).
 func TotalLeagues() int {
-	return len(GetActiveLeagues())
+	return len(ActiveLeagues())
 }
 
 // LeagueIDAtIndex returns the league ID at the given index from active leagues.
 func LeagueIDAtIndex(index int) int {
-	activeLeagues := GetActiveLeagues()
+	activeLeagues := ActiveLeagues()
 	if index < 0 || index >= len(activeLeagues) {
 		return 0
 	}

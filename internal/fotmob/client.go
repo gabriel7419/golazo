@@ -16,16 +16,16 @@ const (
 	baseURL = "https://www.fotmob.com/api"
 )
 
-// GetActiveLeagues returns the league IDs to use for API calls.
+// ActiveLeagues returns the league IDs to use for API calls.
 // This respects user settings - if specific leagues are selected, only those are returned.
 // If no selection is made, returns all supported leagues.
-func GetActiveLeagues() []int {
-	return data.GetActiveLeagueIDs()
+func ActiveLeagues() []int {
+	return data.ActiveLeagueIDs()
 }
 
 // SupportedLeagues is kept for backward compatibility but now uses settings.
-// Use GetActiveLeagues() for dynamic league selection based on user preferences.
-var SupportedLeagues = data.GetAllLeagueIDs()
+// Use ActiveLeagues() for dynamic league selection based on user preferences.
+var SupportedLeagues = data.AllLeagueIDs()
 
 // Client implements the api.Client interface for FotMob API
 type Client struct {
@@ -119,7 +119,7 @@ func (c *Client) MatchesByDateWithTabs(ctx context.Context, date time.Time, tabs
 	var skippedFromCache int
 
 	// Get active leagues (respects user settings)
-	activeLeagues := GetActiveLeagues()
+	activeLeagues := ActiveLeagues()
 
 	// Query specified tabs
 	for _, tab := range tabs {

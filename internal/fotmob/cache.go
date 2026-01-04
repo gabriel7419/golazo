@@ -135,8 +135,8 @@ func (c *ResponseCache) CachedMatchIDs() []int {
 	return ids
 }
 
-// ClearDetailsCache clears all cached match details.
-func (c *ResponseCache) ClearDetailsCache() {
+// ClearDetails clears all cached match details.
+func (c *ResponseCache) ClearDetails() {
 	c.detailsMu.Lock()
 	defer c.detailsMu.Unlock()
 	c.detailsCache = make(map[int]cachedDetails)
@@ -172,9 +172,9 @@ func (c *ResponseCache) SetLiveMatches(matches []api.Match) {
 	}
 }
 
-// ClearLiveCache invalidates the live matches cache.
+// ClearLive invalidates the live matches cache.
 // Call this to force a refresh on next fetch.
-func (c *ResponseCache) ClearLiveCache() {
+func (c *ResponseCache) ClearLive() {
 	c.liveMu.Lock()
 	defer c.liveMu.Unlock()
 	c.liveCache = nil
