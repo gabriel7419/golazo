@@ -65,6 +65,19 @@ var (
 			Foreground(neonCyan)
 )
 
+// getReplayIndicator returns the replay link indicator for a goal if available.
+// This consolidates replay link logic used across finished and live views (DRY principle).
+func getReplayIndicator(details *api.MatchDetails, goalLinks GoalLinksMap, minute int) string {
+	if details == nil || goalLinks == nil {
+		return ""
+	}
+	replayURL := goalLinks.GetReplayURL(details.ID, minute)
+	if replayURL != "" {
+		return CreateGoalLinkDisplay("", replayURL)
+	}
+	return ""
+}
+
 // buildEventContent structures event content with symbol+type adjacent to center time.
 // Home: [Player] [Symbol] [TYPE] ← expands left (type closest to center)
 // Away: [TYPE] [Symbol] [Player] → expands right (type closest to center)
@@ -304,11 +317,7 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 				playerDetails := lipgloss.NewStyle().Foreground(neonWhite).Render(player)
 
 				// Check for replay link and create indicator
-				replayIndicator := ""
-				replayURL := goalLinks.GetReplayURL(details.ID, goal.Minute)
-				if replayURL != "" {
-					replayIndicator = CreateGoalLinkDisplay("", replayURL)
-				}
+				replayIndicator := getReplayIndicator(details, goalLinks, goal.Minute)
 
 				goalStyle := lipgloss.NewStyle().Foreground(neonRed).Bold(true)
 				goalContent := buildEventContent(playerDetails, replayIndicator, "●", goalStyle.Render("GOAL"), isHome)
@@ -537,10 +546,7 @@ func renderStyledLiveUpdate(update string, contentWidth int, details *api.MatchD
 			// Extract minute from the update to look up replay URL
 			minuteStr := strings.TrimSuffix(minute, "'")
 			if minuteInt, err := strconv.Atoi(minuteStr); err == nil {
-				replayURL := goalLinks.GetReplayURL(details.ID, minuteInt)
-				if replayURL != "" {
-					replayIndicator = CreateGoalLinkDisplay("", replayURL)
-				}
+				replayIndicator = getReplayIndicator(details, goalLinks, minuteInt)
 			}
 		}
 

@@ -518,12 +518,7 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 			playerDetails := neonValueStyle.Render(player)
 
 			// Check for replay link and create indicator
-			replayURL := goalLinks.GetReplayURL(details.ID, g.Minute)
-			replayIndicator := ""
-			if replayURL != "" {
-				// Create clickable replay indicator with hyperlink
-				replayIndicator = CreateGoalLinkDisplay("", replayURL)
-			}
+			replayIndicator := getReplayIndicator(details, goalLinks, g.Minute)
 
 			goalContent := buildEventContent(playerDetails, replayIndicator, "●", neonScoreStyle.Render("GOAL"), isHome)
 			goalLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", g.Minute), goalContent, isHome, contentWidth)
