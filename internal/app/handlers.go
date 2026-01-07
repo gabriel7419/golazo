@@ -202,6 +202,12 @@ func (m model) handleSettingsViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case " ": // Space to toggle selection
 			m.settingsState.Toggle()
 			return m, nil
+		case "right", "l": // Right arrow or 'l' to next tab
+			m.settingsState.NextRegion()
+			return m, nil
+		case "left", "h": // Left arrow or 'h' to previous tab
+			m.settingsState.PreviousRegion()
+			return m, nil
 		case "enter":
 			// Save settings and return to main menu
 			_ = m.settingsState.Save() // Best-effort save

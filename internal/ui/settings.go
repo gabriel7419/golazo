@@ -14,10 +14,13 @@ import (
 
 // SettingsState holds the state for the settings view.
 type SettingsState struct {
-	List       list.Model   // List component for league navigation
-	Selected   map[int]bool // Map of league ID -> selected
-	Leagues    []data.LeagueInfo
-	HasChanges bool // Whether there are unsaved changes
+	List          list.Model        // List component for league navigation
+	Selected      map[int]bool      // Map of league ID -> selected
+	Leagues       []data.LeagueInfo // All leagues for current region
+	AllLeagues    []data.LeagueInfo // All leagues across all regions
+	Regions       []string          // Available regions
+	CurrentRegion int               // Index of current region
+	HasChanges    bool              // Whether there are unsaved changes
 }
 
 // NewSettingsState creates a new settings state with current saved preferences.
@@ -34,9 +37,19 @@ func NewSettingsState() *SettingsState {
 		}
 	}
 
-	leagues := data.AllSupportedLeagues
+	regions := data.GetAllRegions()
+	currentRegion := 0 // Start with first region (Europe)
 
-	// Create list items
+	// Get all leagues for current region
+	leagues := data.GetLeaguesForRegion(regions[currentRegion])
+
+	// Get all leagues across all regions for saving/loading
+	allLeagueInfos := make([]data.LeagueInfo, 0, len(data.AllLeagueIDs()))
+	for _, region := range regions {
+		allLeagueInfos = append(allLeagueInfos, data.GetLeaguesForRegion(region)...)
+	}
+
+	// Create list items for current region
 	items := make([]list.Item, len(leagues))
 	for i, league := range leagues {
 		items[i] = LeagueListItem{
@@ -62,9 +75,12 @@ func NewSettingsState() *SettingsState {
 	l.FilterInput.Cursor.Style = filterCursorStyle
 
 	return &SettingsState{
-		List:     l,
-		Selected: selected,
-		Leagues:  leagues,
+		List:          l,
+		Selected:      selected,
+		Leagues:       leagues,
+		AllLeagues:    allLeagueInfos,
+		Regions:       regions,
+		CurrentRegion: currentRegion,
 	}
 }
 
@@ -77,7 +93,7 @@ func (s *SettingsState) Toggle() {
 	}
 }
 
-// refreshListItems updates the list items to reflect current selection state.
+// refreshListItems updates the list items to reflect current selection state for the current region.
 func (s *SettingsState) refreshListItems() {
 	items := make([]list.Item, len(s.Leagues))
 	for i, league := range s.Leagues {
@@ -89,10 +105,39 @@ func (s *SettingsState) refreshListItems() {
 	s.List.SetItems(items)
 }
 
+// switchToRegion switches to a different region and updates the league list.
+func (s *SettingsState) switchToRegion(regionIndex int) {
+	if regionIndex < 0 || regionIndex >= len(s.Regions) {
+		return
+	}
+
+	s.CurrentRegion = regionIndex
+	s.Leagues = data.GetLeaguesForRegion(s.Regions[regionIndex])
+	s.refreshListItems()
+
+	// Reset filter when switching regions
+	s.List.ResetFilter()
+}
+
+// NextRegion switches to the next region (with wraparound).
+func (s *SettingsState) NextRegion() {
+	nextRegion := (s.CurrentRegion + 1) % len(s.Regions)
+	s.switchToRegion(nextRegion)
+}
+
+// PreviousRegion switches to the previous region (with wraparound).
+func (s *SettingsState) PreviousRegion() {
+	prevRegion := s.CurrentRegion - 1
+	if prevRegion < 0 {
+		prevRegion = len(s.Regions) - 1
+	}
+	s.switchToRegion(prevRegion)
+}
+
 // Save persists the current selection to settings.yaml.
 func (s *SettingsState) Save() error {
 	var selectedIDs []int
-	for _, league := range s.Leagues {
+	for _, league := range s.AllLeagues {
 		if s.Selected[league.ID] {
 			selectedIDs = append(selectedIDs, league.ID)
 		}
@@ -123,6 +168,36 @@ func (s *SettingsState) SelectedCount() int {
 // Fixed width for settings panel
 const settingsBoxWidth = 48
 
+// renderTabBar renders the regional tabs at the top of the settings view.
+func renderTabBar(regions []string, currentRegion int, width int) string {
+	var tabElements []string
+
+	for i, region := range regions {
+		var tabStyle lipgloss.Style
+
+		if i == currentRegion {
+			// Active tab - neon cyan
+			tabStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("86")).
+				Bold(true).
+				Padding(0, 2)
+		} else {
+			// Inactive tab - dim
+			tabStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Padding(0, 2)
+		}
+
+		tabElements = append(tabElements, tabStyle.Render(region))
+	}
+
+	// Join tabs with separator
+	tabs := lipgloss.JoinHorizontal(lipgloss.Left, tabElements...)
+
+	// Center the tab bar
+	return lipgloss.NewStyle().Width(width).Align(lipgloss.Center).Render(tabs)
+}
+
 // RenderSettingsView renders the settings view for league customization.
 // Uses minimal styling consistent with the rest of the app (red/cyan neon theme).
 // bannerType determines what status banner (if any) to display at the top.
@@ -134,13 +209,14 @@ func RenderSettingsView(width, height int, state *SettingsState, bannerType cons
 	// Calculate available space for the list
 	const (
 		titleHeight  = 3 // Title + margin
+		tabsHeight   = 2 // Tab bar + margin
 		infoHeight   = 2 // Selection info
 		helpHeight   = 2 // Help text
 		extraPadding = 4 // Additional vertical spacing
 	)
 
 	listWidth := settingsBoxWidth
-	listHeight := height - titleHeight - infoHeight - helpHeight - extraPadding
+	listHeight := height - titleHeight - tabsHeight - infoHeight - helpHeight - extraPadding
 	if listHeight < 5 {
 		listHeight = 5
 	}
@@ -158,8 +234,13 @@ func RenderSettingsView(width, height int, state *SettingsState, bannerType cons
 	titleStyle := neonPanelTitleStyle.Width(settingsBoxWidth)
 	title := titleStyle.Render("League Preferences")
 
+	// Render the tab bar
+	tabs := renderTabBar(state.Regions, state.CurrentRegion, settingsBoxWidth)
+
 	// Render the list
 	listContent := state.List.View()
+	listContainerStyle := lipgloss.NewStyle().Width(settingsBoxWidth)
+	listContent = listContainerStyle.Render(listContent)
 
 	// Selection info
 	selectedCount := state.SelectedCount()
@@ -167,20 +248,23 @@ func RenderSettingsView(width, height int, state *SettingsState, bannerType cons
 	if selectedCount == 0 {
 		infoText = "No selection = default leagues"
 	} else {
-		infoText = fmt.Sprintf("%d of %d selected", selectedCount, len(state.Leagues))
+		infoText = fmt.Sprintf("%d of %d selected", selectedCount, len(state.AllLeagues))
 	}
 	infoStyle := neonDimStyle.Width(settingsBoxWidth).Align(lipgloss.Center)
 	info := infoStyle.Render(infoText)
 
-	// Help text
-	helpStyle := neonDimStyle.Align(lipgloss.Center)
-	help := helpStyle.Render(constants.HelpSettingsView)
+	// Help text - update to include tab navigation
+	helpText := constants.HelpSettingsView + "  ←/→: switch tabs"
+	helpStyle := neonDimStyle.Width(settingsBoxWidth).Align(lipgloss.Center)
+	help := helpStyle.Render(helpText)
 
 	// Combine content (minimal, no borders)
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		statusBanner,
 		title,
+		"",
+		tabs,
 		"",
 		listContent,
 		"",
