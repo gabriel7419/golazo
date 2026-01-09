@@ -16,6 +16,7 @@ import (
 	"github.com/0xjuanma/golazo/internal/ui"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -70,9 +71,12 @@ type model struct {
 	pollingSpinner   *ui.RandomCharSpinner // Small spinner for polling indicator
 
 	// List components
-	liveMatchesList     list.Model
-	statsMatchesList    list.Model
-	upcomingMatchesList list.Model
+	liveMatchesList        list.Model
+	statsMatchesList       list.Model
+	upcomingMatchesList    list.Model
+	statsDetailsViewport   viewport.Model // Scrollable viewport for match details in stats view
+	statsRightPanelFocused bool           // Whether right panel is focused for scrolling
+	statsScrollOffset      int            // Manual scroll offset for right panel content
 
 	// Loading states
 	loading          bool
@@ -150,6 +154,10 @@ func New(useMockData bool, debugMode bool, isDevBuild bool, newVersionAvailable 
 	statsList.FilterInput.PromptStyle = filterPromptStyle
 	statsList.FilterInput.Cursor.Style = filterCursorStyle
 
+	// Initialize viewport for scrollable match details in stats view
+	statsDetailsViewport := viewport.New(80, 20) // Will be resized dynamically
+	statsDetailsViewport.MouseWheelEnabled = true
+
 	upcomingList := list.New([]list.Item{}, delegate, 0, 0)
 	upcomingList.SetShowTitle(false)
 	upcomingList.SetShowStatusBar(true)
@@ -182,26 +190,29 @@ func New(useMockData bool, debugMode bool, isDevBuild bool, newVersionAvailable 
 	}
 
 	return model{
-		currentView:         viewMain,
-		matchDetailsCache:   make(map[int]*api.MatchDetails),
-		useMockData:         useMockData,
-		debugMode:           debugMode,
-		isDevBuild:          isDevBuild,
-		newVersionAvailable: newVersionAvailable,
-		fotmobClient:        fotmob.NewClient(),
-		parser:              fotmob.NewLiveUpdateParser(),
-		redditClient:        redditClient,
-		goalLinks:           make(map[reddit.GoalLinkKey]*reddit.GoalLink),
-		notifier:            notify.NewDesktopNotifier(),
-		spinner:             s,
-		randomSpinner:       randomSpinner,
-		statsViewSpinner:    statsViewSpinner,
-		pollingSpinner:      pollingSpinner,
-		liveMatchesList:     liveList,
-		statsMatchesList:    statsList,
-		upcomingMatchesList: upcomingList,
-		statsDateRange:      1,
-		pendingSelection:    -1, // No pending selection
+		currentView:            viewMain,
+		matchDetailsCache:      make(map[int]*api.MatchDetails),
+		useMockData:            useMockData,
+		debugMode:              debugMode,
+		isDevBuild:             isDevBuild,
+		newVersionAvailable:    newVersionAvailable,
+		fotmobClient:           fotmob.NewClient(),
+		parser:                 fotmob.NewLiveUpdateParser(),
+		redditClient:           redditClient,
+		goalLinks:              make(map[reddit.GoalLinkKey]*reddit.GoalLink),
+		notifier:               notify.NewDesktopNotifier(),
+		spinner:                s,
+		randomSpinner:          randomSpinner,
+		statsViewSpinner:       statsViewSpinner,
+		pollingSpinner:         pollingSpinner,
+		liveMatchesList:        liveList,
+		statsMatchesList:       statsList,
+		upcomingMatchesList:    upcomingList,
+		statsDetailsViewport:   statsDetailsViewport,
+		statsRightPanelFocused: false, // Start with left panel focused
+		statsScrollOffset:      0,     // Start at top
+		statsDateRange:         1,
+		pendingSelection:       -1, // No pending selection
 	}
 }
 
@@ -218,6 +229,73 @@ func (m model) getStatusBannerType() constants.StatusBannerType {
 		return constants.StatusBannerNewVersion
 	}
 	return constants.StatusBannerNone
+}
+
+// getScrollableContentLength returns the approximate number of lines in the scrollable content
+func (m model) getScrollableContentLength() int {
+	if m.matchDetails == nil {
+		return 0
+	}
+
+	lineCount := 0
+
+	// Count goals (each goal is typically 1 line + section header)
+	if len(m.matchDetails.Events) > 0 {
+		goalCount := 0
+		for _, event := range m.matchDetails.Events {
+			if event.Type == "goal" {
+				goalCount++
+			}
+		}
+		if goalCount > 0 {
+			lineCount += 1 + goalCount // Section header + goals
+		}
+	}
+
+	// Count cards (each card is typically 1 line + section header)
+	if len(m.matchDetails.Events) > 0 {
+		cardCount := 0
+		for _, event := range m.matchDetails.Events {
+			if event.Type == "card" {
+				cardCount++
+			}
+		}
+		if cardCount > 0 {
+			lineCount += 1 + cardCount // Section header + cards
+		}
+	}
+
+	// Count statistics (each stat is typically 1 line + section header)
+	if len(m.matchDetails.Statistics) > 0 {
+		lineCount += 1 + len(m.matchDetails.Statistics) // Section header + stats
+	}
+
+	// Add spacing between sections
+	if lineCount > 0 {
+		lineCount += 1 // Extra spacing
+	}
+
+	return lineCount
+}
+
+// getHeaderContentHeight returns the approximate height of the header content
+func (m model) getHeaderContentHeight() int {
+	if m.matchDetails == nil {
+		return 1
+	}
+
+	// Header typically has: title, teams, score, league, venue, date, referee, attendance
+	height := 8 // Base header height
+
+	// Add lines for optional fields
+	if m.matchDetails.Referee != "" {
+		height++
+	}
+	if m.matchDetails.Attendance > 0 {
+		height++
+	}
+
+	return height
 }
 
 // Init initializes the application.

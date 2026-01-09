@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/0xjuanma/golazo/internal/api"
 	"github.com/0xjuanma/golazo/internal/fotmob"
 	"github.com/0xjuanma/golazo/internal/ui"
@@ -131,6 +133,12 @@ func (m model) handleStatsViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		default:
 			m.statsDateRange = 1
 		}
+	case "tab":
+		// Tab = toggle focus between left and right panels
+		m.statsRightPanelFocused = !m.statsRightPanelFocused
+		// Reset scroll position when changing focus (both ways for consistency)
+		m.statsScrollOffset = 0
+		return m, nil
 	default:
 		return m, nil
 	}
@@ -174,15 +182,19 @@ func (m model) loadMatchDetails(matchID int) (tea.Model, tea.Cmd) {
 // loadStatsMatchDetails loads match details for the stats view.
 // Checks cache first to avoid redundant API calls.
 func (m model) loadStatsMatchDetails(matchID int) (tea.Model, tea.Cmd) {
+	m.debugLog(fmt.Sprintf("Loading match details for ID: %d", matchID))
+
 	// Return cached details if available
 	if cached, ok := m.matchDetailsCache[matchID]; ok {
 		m.matchDetails = cached
+		m.debugLog(fmt.Sprintf("Using cached match details for ID: %d", matchID))
 		return m, nil
 	}
 
 	// Fetch from API
 	m.loading = true
 	m.statsViewLoading = true
+	m.debugLog(fmt.Sprintf("Fetching match details from API for ID: %d", matchID))
 	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchStatsMatchDetailsFotmob(m.fotmobClient, matchID, m.useMockData))
 }
 

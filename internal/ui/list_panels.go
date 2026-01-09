@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -165,7 +166,25 @@ func renderUpcomingMatchLine(match MatchDisplay, maxWidth int) string {
 // Uses Neon design with Golazo red/cyan theme.
 // List titles are only shown when there are items. Empty lists show gray messages instead.
 // Upcoming matches are now shown in the Live view instead.
-func RenderStatsListPanel(width, height int, finishedList list.Model, dateRange int) string {
+func RenderStatsListPanel(width, height int, finishedList list.Model, dateRange int, rightPanelFocused bool) string {
+	// Add header with focus state (color-based, not text-based)
+	var header string
+	if rightPanelFocused {
+		// Dimmed header when right panel is focused
+		header = lipgloss.NewStyle().
+			Foreground(neonDim).
+			Bold(true).
+			PaddingBottom(0).
+			BorderBottom(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(neonDim).
+			MarginBottom(0).
+			Render("Match List")
+	} else {
+		// Bright header when left panel is focused
+		header = neonHeaderStyle.Render("Match List")
+	}
+
 	// Render date range selector with neon styling
 	dateSelector := renderDateRangeSelector(width-6, dateRange)
 
@@ -181,9 +200,11 @@ func RenderStatsListPanel(width, height int, finishedList list.Model, dateRange 
 		finishedListView = finishedList.View()
 	}
 
-	// Show finished matches with date selector
+	// Show finished matches with header, date selector
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
+		header,
+		"",
 		dateSelector,
 		"",
 		finishedListView,
@@ -195,10 +216,24 @@ func RenderStatsListPanel(width, height int, finishedList list.Model, dateRange 
 		content = truncateToHeight(content, innerHeight)
 	}
 
-	panel := neonPanelStyle.
-		Width(width).
-		Height(height).
-		Render(content)
+	// Apply panel styling based on focus state
+	var panel string
+	if rightPanelFocused {
+		// Left panel unfocused - dim red border
+		panel = lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(neonDim).
+			Padding(0, 1).
+			Width(width).
+			Height(height).
+			Render(content)
+	} else {
+		// Left panel focused - bright red border
+		panel = neonPanelStyle.
+			Width(width).
+			Height(height).
+			Render(content)
+	}
 
 	return panel
 }
@@ -339,7 +374,7 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 // Rebuilt to match live view structure exactly: spinner at top, left panel (matches), right panel (details).
 // daysLoaded and totalDays show loading progress during progressive loading.
 // Note: Upcoming matches are now shown in the Live view instead.
-func RenderStatsViewWithList(width, height int, finishedList list.Model, details *api.MatchDetails, randomSpinner *RandomCharSpinner, viewLoading bool, dateRange int, daysLoaded int, totalDays int, goalLinks GoalLinksMap, bannerType constants.StatusBannerType) string {
+func RenderStatsViewWithList(width, height int, finishedList list.Model, details *api.MatchDetails, randomSpinner *RandomCharSpinner, viewLoading bool, dateRange int, daysLoaded int, totalDays int, goalLinks GoalLinksMap, bannerType constants.StatusBannerType, detailsViewport *viewport.Model, rightPanelFocused bool, scrollOffset int) string {
 	// Handle edge case: if width/height not set, use defaults
 	if width <= 0 {
 		width = 80
@@ -398,10 +433,81 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 	panelHeight := availableHeight - 2
 
 	// Render left panel (finished matches list) - match live view structure
-	leftPanel := RenderStatsListPanel(leftWidth, panelHeight, finishedList, dateRange)
+	leftPanel := RenderStatsListPanel(leftWidth, panelHeight, finishedList, dateRange, rightPanelFocused)
 
-	// Render right panel (match details) - use dedicated stats panel renderer
-	rightPanel := renderStatsMatchDetailsPanel(rightWidth, panelHeight, details, goalLinks)
+	// Render right panel (match details) - split into fixed header and scrollable content
+	headerContent, scrollableContent := renderStatsMatchDetailsPanel(rightWidth, panelHeight, details, goalLinks, rightPanelFocused)
+
+	var rightPanel string
+
+	// Manual scrolling: split content into lines and show visible portion
+	scrollableLines := strings.Split(scrollableContent, "\n")
+
+	// Calculate available height for scrolling (reserve space for header)
+	headerHeight := strings.Count(headerContent, "\n") + 1
+	availableHeight = panelHeight - headerHeight
+	if availableHeight < 3 {
+		availableHeight = 3 // Minimum scrollable area
+	}
+
+	// Apply manual scroll offset when focused, otherwise show beginning of content
+	visibleLines := scrollableLines
+	if rightPanelFocused && len(scrollableLines) > availableHeight {
+		// Show only visible portion based on scroll offset
+		start := scrollOffset
+		end := start + availableHeight
+		if end > len(scrollableLines) {
+			end = len(scrollableLines)
+		}
+		if start < len(scrollableLines) && start >= 0 {
+			visibleLines = scrollableLines[start:end]
+		} else if start >= len(scrollableLines) {
+			visibleLines = []string{}
+		}
+		// When focused, ensure we have enough lines to fill the available height
+		for len(visibleLines) < availableHeight && len(visibleLines) < len(scrollableLines) {
+			visibleLines = append(visibleLines, "")
+		}
+	} else {
+		// When not focused, show the beginning of content (same as scroll offset 0)
+		// This ensures consistent display when toggling focus
+		if len(scrollableLines) > availableHeight {
+			visibleLines = scrollableLines[:availableHeight]
+		}
+		// Reset scroll offset when not focused to maintain consistency
+		if scrollOffset != 0 {
+			// Note: This is just for display consistency, the actual offset reset happens in the tab handler
+		}
+	}
+
+	// Combine visible lines back into content
+	visibleContent := strings.Join(visibleLines, "\n")
+
+	// Always include header
+	rightPanel = lipgloss.JoinVertical(lipgloss.Left, headerContent, visibleContent)
+
+	// Apply panel styling based on focus state (only top/bottom borders for right panel)
+	if rightPanelFocused {
+		// Focused right panel - bright neon cyan top/bottom borders
+		rightPanel = lipgloss.NewStyle().
+			BorderTop(true).
+			BorderBottom(true).
+			BorderForeground(neonCyan).
+			Padding(0, 1).
+			Width(rightWidth).
+			MaxHeight(panelHeight).
+			Render(rightPanel)
+	} else {
+		// Unfocused right panel - dim top/bottom borders
+		rightPanel = lipgloss.NewStyle().
+			BorderTop(true).
+			BorderBottom(true).
+			BorderForeground(neonDim).
+			Padding(0, 1).
+			Width(rightWidth).
+			MaxHeight(panelHeight).
+			Render(rightPanel)
+	}
 
 	// Create separator with neon red accent
 	separatorStyle := neonSeparatorStyle.Height(panelHeight)
@@ -418,7 +524,7 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 	// Add status banner between spinner and panels (more stable than spinner area)
 	statusBanner := renderStatusBanner(bannerType, width)
 
-	// Combine spinner area, status banner, and panels
+	// Combine all elements (panels already include headers with focus styling)
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		spinnerArea,
@@ -431,8 +537,9 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 
 // renderStatsMatchDetailsPanel renders the right panel for stats view with match details.
 // Uses Neon design with Golazo red/cyan theme.
+// Returns fixed header and scrollable content separately for viewport scrolling.
 // Displays expanded match information including statistics, lineups, and more.
-func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, goalLinks GoalLinksMap) string {
+func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, goalLinks GoalLinksMap, focused bool) (string, string) {
 	if details == nil {
 		emptyMessage := neonDimStyle.
 			Align(lipgloss.Center).
@@ -440,15 +547,18 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 			PaddingTop(height / 4).
 			Render("Select a match to view details")
 
-		return neonPanelCyanStyle.
+		emptyPanel := neonPanelCyanStyle.
 			Width(width).
 			Height(height).
 			MaxHeight(height).
 			Render(emptyMessage)
+
+		return "", emptyPanel // No header, all content is empty message
 	}
 
 	contentWidth := width - 6 // Account for border padding
-	var lines []string
+	var headerLines []string
+	var scrollableLines []string
 
 	// Team names
 	homeTeam := details.HomeTeam.ShortName
@@ -461,47 +571,71 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 	}
 
 	// ═══════════════════════════════════════════════
-	// MATCH HEADER
+	// MATCH HEADER (FIXED - always visible)
 	// ═══════════════════════════════════════════════
-	lines = append(lines, neonHeaderStyle.Render("Match Info"))
-	lines = append(lines, "")
+	var headerText string
+	if focused {
+		// Bright cyan header when focused
+		headerText = lipgloss.NewStyle().
+			Foreground(neonCyan).
+			Bold(true).
+			PaddingBottom(0).
+			BorderBottom(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(neonCyan).
+			MarginBottom(0).
+			Render("Match Details")
+	} else {
+		// Dim header when not focused
+		headerText = lipgloss.NewStyle().
+			Foreground(neonDim).
+			Bold(true).
+			PaddingBottom(0).
+			BorderBottom(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(neonDim).
+			MarginBottom(0).
+			Render("Match Details")
+	}
+	headerLines = append(headerLines, headerText)
+	headerLines = append(headerLines, "")
 
 	// Line 1: Team A vs Team B (centered)
 	teamsDisplay := fmt.Sprintf("%s  vs  %s",
 		neonTeamStyle.Render(homeTeam),
 		neonTeamStyle.Render(awayTeam))
-	lines = append(lines, lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(teamsDisplay))
-	lines = append(lines, "")
+	headerLines = append(headerLines, lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(teamsDisplay))
+	headerLines = append(headerLines, "")
 
 	// Line 2: Large score (like live view)
 	if details.HomeScore != nil && details.AwayScore != nil {
 		largeScore := renderLargeScore(*details.HomeScore, *details.AwayScore, contentWidth)
-		lines = append(lines, largeScore)
+		headerLines = append(headerLines, largeScore)
 	} else {
 		vsText := lipgloss.NewStyle().
 			Foreground(neonDim).
 			Width(contentWidth).
 			Align(lipgloss.Center).
 			Render("vs")
-		lines = append(lines, vsText)
+		headerLines = append(headerLines, vsText)
 	}
-	lines = append(lines, "")
+	headerLines = append(headerLines, "")
 
 	// Match context row
 	if details.League.Name != "" {
-		lines = append(lines, neonLabelStyle.Render("League:      ")+neonValueStyle.Render(details.League.Name))
+		headerLines = append(headerLines, neonLabelStyle.Render("League:      ")+neonValueStyle.Render(details.League.Name))
 	}
 	if details.Venue != "" {
-		lines = append(lines, neonLabelStyle.Render("Venue:       ")+neonValueStyle.Render(truncateString(details.Venue, contentWidth-14)))
+		headerLines = append(headerLines, neonLabelStyle.Render("Venue:       ")+neonValueStyle.Render(truncateString(details.Venue, contentWidth-14)))
 	}
 	if details.MatchTime != nil {
-		lines = append(lines, neonLabelStyle.Render("Date:        ")+neonValueStyle.Render(details.MatchTime.Format("02 Jan 2006, 15:04")+" UTC"))
+		headerLines = append(headerLines, neonLabelStyle.Render("Date:        ")+neonValueStyle.Render(details.MatchTime.Format("02 Jan 2006, 15:04")+" UTC"))
 	}
 	if details.Referee != "" {
-		lines = append(lines, neonLabelStyle.Render("Referee:     ")+neonValueStyle.Render(details.Referee))
+		headerLines = append(headerLines, neonLabelStyle.Render("Referee:     ")+neonValueStyle.Render(details.Referee))
 	}
 	if details.Attendance > 0 {
-		lines = append(lines, neonLabelStyle.Render("Attendance:  ")+neonValueStyle.Render(formatNumber(details.Attendance)))
+		headerLines = append(headerLines, neonLabelStyle.Render("Attendance:  ")+neonValueStyle.Render(formatNumber(details.Attendance)))
 	}
 
 	// ═══════════════════════════════════════════════
@@ -515,8 +649,8 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 	}
 
 	if len(goals) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, neonHeaderStyle.Render("Goals"))
+		scrollableLines = append(scrollableLines, "")
+		scrollableLines = append(scrollableLines, neonHeaderStyle.Render("Goals"))
 
 		for _, g := range goals {
 			isHome := g.Team.ID == details.HomeTeam.ID
@@ -532,7 +666,7 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 
 			goalContent := buildEventContent(playerDetails, replayIndicator, "●", neonScoreStyle.Render("GOAL"), isHome)
 			goalLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", g.Minute), goalContent, isHome, contentWidth)
-			lines = append(lines, goalLine)
+			scrollableLines = append(scrollableLines, goalLine)
 		}
 	}
 
@@ -547,8 +681,8 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 	}
 
 	if len(cardEvents) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, neonHeaderStyle.Render("Cards"))
+		scrollableLines = append(scrollableLines, "")
+		scrollableLines = append(scrollableLines, neonHeaderStyle.Render("Cards"))
 
 		for _, card := range cardEvents {
 			player := "Unknown"
@@ -569,7 +703,7 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 			playerDetails := neonValueStyle.Render(player)
 			cardContent := buildEventContent(playerDetails, "", cardSymbol, cardStyle.Render("CARD"), isHome)
 			cardLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", card.Minute), cardContent, isHome, contentWidth)
-			lines = append(lines, cardLine)
+			scrollableLines = append(scrollableLines, cardLine)
 		}
 	}
 
@@ -577,8 +711,8 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 	// MATCH STATISTICS (Visual Progress Bars)
 	// ═══════════════════════════════════════════════
 	if len(details.Statistics) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, neonHeaderStyle.Render("Statistics"))
+		scrollableLines = append(scrollableLines, "")
+		scrollableLines = append(scrollableLines, neonHeaderStyle.Render("Statistics"))
 
 		// Only show these 5 specific stats
 		wantedStats := []struct {
@@ -611,16 +745,16 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 
 				if matched {
 					// Add spacing before each stat
-					lines = append(lines, "")
+					scrollableLines = append(scrollableLines, "")
 
 					if wanted.isProgress {
 						// Render as visual progress bar (centered)
 						statLine := renderStatProgressBar(wanted.label, stat.HomeValue, stat.AwayValue, contentWidth, homeTeam, awayTeam)
-						lines = append(lines, centerStyle.Render(statLine))
+						scrollableLines = append(scrollableLines, centerStyle.Render(statLine))
 					} else {
 						// Render as comparison bar (centered)
 						statLine := renderStatComparison(wanted.label, stat.HomeValue, stat.AwayValue, contentWidth)
-						lines = append(lines, centerStyle.Render(statLine))
+						scrollableLines = append(scrollableLines, centerStyle.Render(statLine))
 					}
 					break
 				}
@@ -628,19 +762,23 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 		}
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, lines...)
+	// Combine header and scrollable content
+	headerContent := lipgloss.JoinVertical(lipgloss.Left, headerLines...)
+	scrollableContent := lipgloss.JoinVertical(lipgloss.Left, scrollableLines...)
 
-	return neonPanelCyanStyle.
-		Width(width).
-		Height(height).
-		MaxHeight(height).
-		Render(content)
+	return headerContent, scrollableContent
 }
 
 // RenderMatchDetailsPanel is an exported version of renderStatsMatchDetailsPanel
 // for use by debug scripts. Renders match details in the Golazo stats view style.
 func RenderMatchDetailsPanel(width, height int, details *api.MatchDetails) string {
-	return renderStatsMatchDetailsPanel(width, height, details, nil)
+	header, scrollable := renderStatsMatchDetailsPanel(width, height, details, nil, false)
+	content := lipgloss.JoinVertical(lipgloss.Left, header, scrollable)
+	return neonPanelCyanStyle.
+		Width(width).
+		Height(height).
+		MaxHeight(height).
+		Render(content)
 }
 
 // Fixed bar width for consistent UI

@@ -383,9 +383,58 @@ func (m model) handleStatsSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Check if list is in filtering mode - if so, let list handle ALL keys
 	isFiltering := m.statsMatchesList.FilterState() == list.Filtering
 
+	// Handle keys based on focus state
+	if m.statsRightPanelFocused && m.matchDetails != nil && m.statsDetailsViewport.Height > 0 {
+		// Right panel focused - handle scrolling keys
+		switch msg.String() {
+		case "up", "k":
+			// Manual scroll up
+			if m.matchDetails != nil && m.statsScrollOffset > 0 {
+				m.statsScrollOffset--
+			}
+			return m, nil
+		case "down", "j":
+			// Manual scroll down with bounds checking
+			if m.matchDetails != nil && m.statsRightPanelFocused {
+				// Get content dimensions
+				scrollableLines := m.getScrollableContentLength()
+				headerHeight := m.getHeaderContentHeight()
+
+				// Calculate available height for scrolling
+				availableHeight := m.height - 10 // Approximate panel height minus borders/spinner
+				if availableHeight < 10 {
+					availableHeight = 10
+				}
+				scrollableHeight := availableHeight - headerHeight
+				if scrollableHeight < 3 {
+					scrollableHeight = 3
+				}
+
+				// Check if we can scroll down further
+				maxOffset := scrollableLines - scrollableHeight
+				if maxOffset < 0 {
+					maxOffset = 0
+				}
+
+				if m.statsScrollOffset < maxOffset {
+					m.statsScrollOffset++
+				}
+			}
+			return m, nil
+		case "tab":
+			// Tab toggles focus back to left panel
+			m.statsRightPanelFocused = false
+			return m, nil
+		}
+	}
+
 	// Only handle date range navigation when NOT filtering
 	if !isFiltering {
 		if msg.String() == "h" || msg.String() == "left" || msg.String() == "l" || msg.String() == "right" {
+			return m.handleStatsViewKeys(msg)
+		}
+		// Handle tab toggle when not filtering
+		if msg.String() == "tab" {
 			return m.handleStatsViewKeys(msg)
 		}
 	}

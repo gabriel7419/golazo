@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Regional League Settings Revamp** - Settings now organizes leagues by regions with tab navigation
 - **New Leagues & Competitions** - Added Ukrainian Premier League, Russian Premier League, Chinese Super League, Qatar Stars League, Premier Soccer League (South Africa), Botola Pro (Morocco), Supercopa de España, FIFA Club World Cup, UEFA Nations League, Club Friendlies, and International Friendlies support
+- **Scrollable Match Details** - Goals, Cards, and Statistics sections in finished matches view are now scrollable with Tab focus + arrow keys
 
 ### Changed
 
