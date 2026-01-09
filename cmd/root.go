@@ -7,12 +7,9 @@ import (
 	"runtime"
 
 	"github.com/0xjuanma/golazo/internal/app"
-	"github.com/0xjuanma/golazo/internal/constants"
 	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/ui"
+	"github.com/0xjuanma/golazo/internal/version"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/lucasb-eyer/go-colorful"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +27,7 @@ var rootCmd = &cobra.Command{
 	Long:  `A modern terminal user interface for real-time football stats and scores, covering multiple leagues and competitions.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if versionFlag {
-			printVersion()
+			version.Print(Version)
 			return
 		}
 
@@ -46,15 +43,20 @@ var rootCmd = &cobra.Command{
 
 		if !isDevBuild {
 			if storedLatestVersion, err := data.LoadLatestVersion(); err == nil && storedLatestVersion != "" {
-				// Check if new version is available (current app vs stored latest)
-				newVersionAvailable = Version != storedLatestVersion
+				// Check if new version is available (current app < stored latest)
+				newVersionAvailable = version.IsOlder(Version, storedLatestVersion)
 			}
 		}
 
 		// Check for updates in background (non-blocking)
 		go func() {
-			// Check immediately if versions don't match, OR do daily check
-			if (storedLatestVersion != "" && Version != storedLatestVersion) || data.ShouldCheckVersion() {
+			// Check immediately if current version is older than stored, OR do daily check
+			shouldCheck := data.ShouldCheckVersion()
+			if !shouldCheck && storedLatestVersion != "" && !isDevBuild {
+				shouldCheck = version.IsOlder(Version, storedLatestVersion)
+			}
+
+			if shouldCheck {
 				if fetchedVersion, err := data.CheckLatestVersion(); err == nil {
 					data.SaveLatestVersion(fetchedVersion)
 				}
@@ -67,20 +69,6 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
-}
-
-// printVersion displays the ASCII logo with gradient and version.
-func printVersion() {
-	// Render ASCII title with gradient (same as main view)
-	title := ui.RenderGradientText(constants.ASCIITitle)
-
-	// Render version with gradient color (use the end color - red)
-	endColor, _ := colorful.Hex(constants.GradientEndColor)
-	versionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(endColor.Hex()))
-	versionText := versionStyle.Render(Version)
-
-	// Concatenate version after the last line of ASCII art
-	fmt.Println(title + "" + versionText)
 }
 
 // runUpdate executes the install script to update golazo to the latest version.

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Enhanced Version Management** - Fixed version comparison logic and organized version functionality into dedicated package
 
 ## [0.13.0] - 2026-01-08
 
