@@ -137,6 +137,7 @@
       {
         "id": 1,
         "minute": 12,
+        "display_minute": "12'",
         "type": "goal",
         "teamId": 8668,
         "player": "Dominic Calvert-Lewin",
@@ -153,6 +154,7 @@
       {
         "id": 3,
         "minute": 35,
+        "display_minute": "35'",
         "type": "goal",
         "teamId": 8602,
         "player": "Hwang Hee-chan"
@@ -160,9 +162,19 @@
       {
         "id": 4,
         "minute": 42,
+        "display_minute": "42'",
         "type": "goal",
         "teamId": 8668,
         "player": "Abdoulaye Doucouré"
+      },
+      {
+        "id": 5,
+        "minute": 45,
+        "display_minute": "45+2'",
+        "type": "goal",
+        "teamId": 8668,
+        "player": "Lionel Messi",
+        "assist": "Pedri"
       },
       {
         "id": 5,
