@@ -53,7 +53,7 @@ var AllSupportedLeagues = map[string][]LeagueInfo{
 		{ID: 61, Name: "Primeira Liga", Country: "Portugal"},
 		{ID: 10215, Name: "Primeira Liga Qualification", Country: "Portugal"},
 		{ID: 185, Name: "Liga Portugal 2", Country: "Portugal"},
-		{ID: 9668, Name: "Liga Portugal Qualification", Country: "Portugal"},
+		{ID: 9668, Name: "Liga Portugal 2 Qualification", Country: "Portugal"},
 		{ID: 64, Name: "Scottish Premiership", Country: "Scotland"},
 		{ID: 135, Name: "Super League 1", Country: "Greece"},
 		{ID: 46, Name: "Superligaen", Country: "Denmark"},
