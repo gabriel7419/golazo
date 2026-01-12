@@ -51,6 +51,9 @@ var AllSupportedLeagues = map[string][]LeagueInfo{
 		{ID: 218, Name: "League of Ireland First Division", Country: "Ireland"},
 		{ID: 126, Name: "League of Ireland Premier Division", Country: "Ireland"},
 		{ID: 61, Name: "Primeira Liga", Country: "Portugal"},
+		{ID: 10215, Name: "Primeira Liga Qualification", Country: "Portugal"},
+		{ID: 185, Name: "Liga Portugal 2", Country: "Portugal"},
+		{ID: 9668, Name: "Liga Portugal 2 Qualification", Country: "Portugal"},
 		{ID: 64, Name: "Scottish Premiership", Country: "Scotland"},
 		{ID: 135, Name: "Super League 1", Country: "Greece"},
 		{ID: 46, Name: "Superligaen", Country: "Denmark"},
@@ -73,6 +76,10 @@ var AllSupportedLeagues = map[string][]LeagueInfo{
 		{ID: 10650, Name: "Women's DFB Pokal", Country: "Germany"},
 		{ID: 141, Name: "Coppa Italia", Country: "Italy"},
 		{ID: 134, Name: "Coupe de France", Country: "France"},
+		//Portugal Cups
+		{ID: 186, Name: "Taça de Portugal", Country: "Portugal"},
+		{ID: 187, Name: "Taça da Liga", Country: "Portugal"},
+		{ID: 188, Name: "Supertaça Cândido de Oliveira", Country: "Portugal"},
 	},
 	RegionAmerica: {
 		// South America

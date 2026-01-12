@@ -34,6 +34,9 @@ Golazo supports **60+ leagues and competitions**. Customize your selection in Se
 | 🇮🇪 | League of Ireland First Division |
 | 🇮🇪 | League of Ireland Premier Division |
 | 🇵🇹 | Primeira Liga |
+| 🇵🇹 | Primeira Liga Qualification |
+| 🇵🇹 | Liga Portugal 2 |
+| 🇵🇹 | Liga Portugal 2 Qualification |
 | 🇷🇺 | Russian Premier League |
 | 🏴󠁧󠁢󠁳󠁣󠁴󠁿 | Scottish Premiership |
 | 🇬🇷 | Super League 1 |
@@ -64,6 +67,9 @@ Golazo supports **60+ leagues and competitions**. Customize your selection in Se
 | 🏴󠁧󠁢󠁥󠁮󠁧󠁿 | FA Cup |
 | 🇪🇸 | Supercopa de España |
 | 🇩🇪 | Women's DFB Pokal |
+| 🇵🇹 | Taça de Portugal |
+| 🇵🇹 | Taça da Liga |
+| 🇵🇹 | Supertaça Cândido de Oliveira |
 
 ## South America
 
