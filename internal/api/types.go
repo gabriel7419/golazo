@@ -46,14 +46,15 @@ type Match struct {
 
 // MatchEvent represents an event in a match (goal, card, substitution, etc.)
 type MatchEvent struct {
-	ID        int       `json:"id"`
-	Minute    int       `json:"minute"`
-	Type      string    `json:"type"` // "goal", "card", "substitution", etc.
-	Team      Team      `json:"team"`
-	Player    *string   `json:"player,omitempty"`
-	Assist    *string   `json:"assist,omitempty"`
-	EventType *string   `json:"event_type,omitempty"` // "yellow", "red", "in", "out", etc.
-	Timestamp time.Time `json:"timestamp"`
+	ID            int       `json:"id"`
+	Minute        int       `json:"minute"`        // Base minute (e.g., 45)
+	DisplayMinute string    `json:"display_minute,omitempty"` // Formatted minute with stoppage time (e.g., "45+2'")
+	Type          string    `json:"type"`          // "goal", "card", "substitution", etc.
+	Team          Team      `json:"team"`
+	Player        *string   `json:"player,omitempty"`
+	Assist        *string   `json:"assist,omitempty"`
+	EventType     *string   `json:"event_type,omitempty"` // "yellow", "red", "in", "out", etc.
+	Timestamp     time.Time `json:"timestamp"`
 }
 
 // MatchStatistic represents a single match statistic (possession, shots, etc.)

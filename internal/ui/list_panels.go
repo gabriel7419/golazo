@@ -665,7 +665,11 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 			replayIndicator := getReplayIndicator(details, goalLinks, g.Minute)
 
 			goalContent := buildEventContent(playerDetails, replayIndicator, "●", neonScoreStyle.Render("GOAL"), isHome)
-			goalLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", g.Minute), goalContent, isHome, contentWidth)
+			minuteStr := g.DisplayMinute
+			if minuteStr == "" {
+				minuteStr = fmt.Sprintf("%d'", g.Minute) // Fallback
+			}
+			goalLine := renderCenterAlignedEvent(minuteStr, goalContent, isHome, contentWidth)
 			scrollableLines = append(scrollableLines, goalLine)
 		}
 	}
@@ -702,7 +706,11 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 			// Build card content with symbol+type adjacent to center time
 			playerDetails := neonValueStyle.Render(player)
 			cardContent := buildEventContent(playerDetails, "", cardSymbol, cardStyle.Render("CARD"), isHome)
-			cardLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", card.Minute), cardContent, isHome, contentWidth)
+			minuteStr := card.DisplayMinute
+			if minuteStr == "" {
+				minuteStr = fmt.Sprintf("%d'", card.Minute) // Fallback
+			}
+			cardLine := renderCenterAlignedEvent(minuteStr, cardContent, isHome, contentWidth)
 			scrollableLines = append(scrollableLines, cardLine)
 		}
 	}

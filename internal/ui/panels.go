@@ -323,7 +323,11 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 				goalStyle := lipgloss.NewStyle().Foreground(neonRed).Bold(true)
 				goalContent := buildEventContent(playerDetails, replayIndicator, "●", goalStyle.Render("GOAL"), isHome)
 
-				goalLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", goal.Minute), goalContent, isHome, contentWidth)
+				minuteStr := goal.DisplayMinute
+				if minuteStr == "" {
+					minuteStr = fmt.Sprintf("%d'", goal.Minute) // Fallback
+				}
+				goalLine := renderCenterAlignedEvent(minuteStr, goalContent, isHome, contentWidth)
 				content.WriteString(goalLine)
 				content.WriteString("\n")
 			}
@@ -370,7 +374,11 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 				playerDetails := lipgloss.NewStyle().Foreground(neonWhite).Render(player)
 				cardContent := buildEventContent(playerDetails, "", cardSymbol, cardStyle.Render("CARD"), isHome)
 
-				cardLine := renderCenterAlignedEvent(fmt.Sprintf("%d'", card.Minute), cardContent, isHome, contentWidth)
+				minuteStr := card.DisplayMinute
+			if minuteStr == "" {
+				minuteStr = fmt.Sprintf("%d'", card.Minute) // Fallback
+			}
+			cardLine := renderCenterAlignedEvent(minuteStr, cardContent, isHome, contentWidth)
 				content.WriteString(cardLine)
 				content.WriteString("\n")
 			}
@@ -743,7 +751,10 @@ func renderSubstitutionWithColorsNoMinute(update string, isHome bool) string {
 func formatMatchEventForDisplay(event api.MatchEvent, homeTeamID int, contentWidth int) string {
 	// Uses package-level neon colors from neon_styles.go
 	isHome := isHomeTeamEvent(event, homeTeamID)
-	minuteStr := fmt.Sprintf("%d'", event.Minute)
+	minuteStr := event.DisplayMinute
+	if minuteStr == "" {
+		minuteStr = fmt.Sprintf("%d'", event.Minute) // Fallback
+	}
 	whiteStyle := lipgloss.NewStyle().Foreground(neonWhite)
 
 	var eventContent string

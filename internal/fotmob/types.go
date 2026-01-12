@@ -2,6 +2,7 @@ package fotmob
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -394,6 +395,17 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 			Minute:    e.Time,
 			Type:      eventType,
 			Timestamp: time.Now(),
+		}
+
+		// Set display minute - use TimeStr if available (for stoppage time), otherwise format base minute
+		if timeStrVal, ok := e.TimeStr.(string); ok && timeStrVal != "" {
+			// Clean up TimeStr to remove spaces around + sign (e.g., "45 + 2" -> "45+2")
+			cleanTimeStr := strings.ReplaceAll(timeStrVal, " + ", "+")
+			event.DisplayMinute = cleanTimeStr + "'"
+		} else if timeStrInt, ok := e.TimeStr.(float64); ok && timeStrInt > 0 {
+			event.DisplayMinute = fmt.Sprintf("%.0f'", timeStrInt)
+		} else {
+			event.DisplayMinute = fmt.Sprintf("%d'", e.Time)
 		}
 
 		// Extract player name

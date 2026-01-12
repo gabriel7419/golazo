@@ -24,7 +24,7 @@ func findBestMatch(results []SearchResult, goal GoalInfo) *SearchResult {
 	// Normalize team names for comparison
 	homeNorm := normalizeTeamName(goal.HomeTeam)
 	awayNorm := normalizeTeamName(goal.AwayTeam)
-	minutePattern := buildMinutePattern(goal.Minute)
+	minutePattern := buildMinutePattern(goal)
 
 	// Build score pattern for validation (e.g., "1-0", "2-1", etc.)
 	scorePattern := buildScorePattern(goal.HomeScore, goal.AwayScore)
@@ -202,13 +202,41 @@ func containsName(title, nameNorm string) bool {
 // buildMinutePattern creates a regex to match a minute in various formats.
 // Matches: "41'", "41" (at word boundary), "41+2'" etc.
 // Also checks +/-2 minute tolerance for better matching.
-func buildMinutePattern(minute int) *regexp.Regexp {
+// If DisplayMinute contains stoppage time (e.g., "45+2'"), also searches for total time (47').
+func buildMinutePattern(goal GoalInfo) *regexp.Regexp {
+	minute := goal.Minute
 	// Create patterns for minute ±2 tolerance
 	var patterns []string
 	for offset := -2; offset <= 2; offset++ {
 		targetMinute := minute + offset
 		if targetMinute >= 0 {
 			patterns = append(patterns, `\b`+strconv.Itoa(targetMinute)+`(\+\d+)?'?\b`)
+		}
+	}
+
+	// If DisplayMinute contains stoppage time, also search for total time
+	// e.g., "45+2'" should also match "47'" (45 + 2 = 47)
+	if goal.DisplayMinute != "" {
+		// Parse stoppage time like "45+2'" to find total time
+		if plusIndex := strings.Index(goal.DisplayMinute, "+"); plusIndex > 0 {
+			baseMinuteStr := goal.DisplayMinute[:plusIndex]
+			if baseMinute, err := strconv.Atoi(baseMinuteStr); err == nil {
+				// Look for patterns after + (like +2, +3, etc.)
+				plusPart := goal.DisplayMinute[plusIndex+1:]
+				if quoteIndex := strings.Index(plusPart, "'"); quoteIndex > 0 {
+					addedTimeStr := plusPart[:quoteIndex]
+					if addedTime, err := strconv.Atoi(addedTimeStr); err == nil {
+						totalTime := baseMinute + addedTime
+						// Add patterns for the total time ±1 tolerance
+						for offset := -1; offset <= 1; offset++ {
+							targetTotal := totalTime + offset
+							if targetTotal >= 0 && targetTotal != baseMinute { // Avoid duplicate with base minute
+								patterns = append(patterns, `\b`+strconv.Itoa(targetTotal)+`'?\b`)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -254,7 +282,7 @@ func CalculateConfidence(result SearchResult, goal GoalInfo) MatchConfidence {
 
 	hasHome := containsTeamName(titleLower, homeNorm)
 	hasAway := containsTeamName(titleLower, awayNorm)
-	hasMinute := buildMinutePattern(goal.Minute).MatchString(result.Title)
+	hasMinute := buildMinutePattern(goal).MatchString(result.Title)
 
 	if hasHome && hasAway && hasMinute {
 		return ConfidenceHigh

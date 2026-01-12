@@ -87,13 +87,14 @@ func (p *redditPost) toSearchResult() SearchResult {
 
 // GoalInfo contains information about a goal to search for.
 type GoalInfo struct {
-	MatchID    int
-	HomeTeam   string
-	AwayTeam   string
-	ScorerName string
-	Minute     int
-	HomeScore  int
-	AwayScore  int
-	IsHomeTeam bool
-	MatchTime  time.Time
+	MatchID       int
+	HomeTeam      string
+	AwayTeam      string
+	ScorerName    string
+	Minute        int
+	DisplayMinute string // e.g., "45+2'" for stoppage time display
+	HomeScore     int
+	AwayScore     int
+	IsHomeTeam    bool
+	MatchTime     time.Time
 }

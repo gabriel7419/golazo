@@ -89,28 +89,28 @@ func generateLiveMatchEvents(matchID int, match api.Match) []api.MatchEvent {
 
 	case 2004: // Arsenal 2-3 Liverpool (FT) - Premier League
 		events = []api.MatchEvent{
-			{ID: 17, Minute: 8, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Salah"), Timestamp: time.Now()},
-			{ID: 18, Minute: 15, Type: "card", Team: match.HomeTeam, Player: stringPtr("Rice"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 19, Minute: 23, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Saka"), Assist: stringPtr("Odegaard"), Timestamp: time.Now()},
-			{ID: 20, Minute: 34, Type: "substitution", Team: match.AwayTeam, Player: stringPtr("Gakpo"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
-			{ID: 21, Minute: 45, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Nunez"), Timestamp: time.Now()},
-			{ID: 22, Minute: 56, Type: "card", Team: match.AwayTeam, Player: stringPtr("Van Dijk"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 23, Minute: 67, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Martinelli"), Timestamp: time.Now()},
-			{ID: 24, Minute: 78, Type: "substitution", Team: match.HomeTeam, Player: stringPtr("Trossard"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
-			{ID: 25, Minute: 85, Type: "card", Team: match.HomeTeam, Player: stringPtr("Gabriel"), EventType: stringPtr("red"), Timestamp: time.Now()},
-			{ID: 26, Minute: 89, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Diaz"), Assist: stringPtr("Salah"), Timestamp: time.Now()},
+			{ID: 17, Minute: 8, DisplayMinute: "8'", Type: "goal", Team: match.AwayTeam, Player: stringPtr("Salah"), Timestamp: time.Now()},
+			{ID: 18, Minute: 15, DisplayMinute: "15'", Type: "card", Team: match.HomeTeam, Player: stringPtr("Rice"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 19, Minute: 23, DisplayMinute: "23'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Saka"), Assist: stringPtr("Odegaard"), Timestamp: time.Now()},
+			{ID: 20, Minute: 34, DisplayMinute: "34'", Type: "substitution", Team: match.AwayTeam, Player: stringPtr("Gakpo"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
+			{ID: 21, Minute: 45, DisplayMinute: "45+1'", Type: "goal", Team: match.AwayTeam, Player: stringPtr("Nunez"), Timestamp: time.Now()},
+			{ID: 22, Minute: 56, DisplayMinute: "56'", Type: "card", Team: match.AwayTeam, Player: stringPtr("Van Dijk"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 23, Minute: 67, DisplayMinute: "67'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Martinelli"), Timestamp: time.Now()},
+			{ID: 24, Minute: 78, DisplayMinute: "78'", Type: "substitution", Team: match.HomeTeam, Player: stringPtr("Trossard"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
+			{ID: 25, Minute: 85, DisplayMinute: "85'", Type: "card", Team: match.HomeTeam, Player: stringPtr("Gabriel"), EventType: stringPtr("red"), Timestamp: time.Now()},
+			{ID: 26, Minute: 90, DisplayMinute: "90+3'", Type: "goal", Team: match.AwayTeam, Player: stringPtr("Diaz"), Assist: stringPtr("Salah"), Timestamp: time.Now()},
 		}
 
 	case 2005: // Barcelona 4-1 Sevilla (FT) - La Liga
 		events = []api.MatchEvent{
-			{ID: 27, Minute: 12, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Lewandowski"), Timestamp: time.Now()},
-			{ID: 28, Minute: 23, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Yamal"), Assist: stringPtr("Pedri"), Timestamp: time.Now()},
-			{ID: 29, Minute: 34, Type: "card", Team: match.AwayTeam, Player: stringPtr("Gudelj"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 30, Minute: 45, Type: "goal", Team: match.AwayTeam, Player: stringPtr("Lukebakio"), Timestamp: time.Now()},
-			{ID: 31, Minute: 56, Type: "substitution", Team: match.HomeTeam, Player: stringPtr("Ferran Torres"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
-			{ID: 32, Minute: 67, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Raphinha"), Timestamp: time.Now()},
-			{ID: 33, Minute: 78, Type: "card", Team: match.HomeTeam, Player: stringPtr("Araujo"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
-			{ID: 34, Minute: 89, Type: "goal", Team: match.HomeTeam, Player: stringPtr("Lewandowski"), Assist: stringPtr("Yamal"), Timestamp: time.Now()},
+			{ID: 27, Minute: 12, DisplayMinute: "12'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Lewandowski"), Timestamp: time.Now()},
+			{ID: 28, Minute: 23, DisplayMinute: "23'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Yamal"), Assist: stringPtr("Pedri"), Timestamp: time.Now()},
+			{ID: 29, Minute: 34, DisplayMinute: "34'", Type: "card", Team: match.AwayTeam, Player: stringPtr("Gudelj"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 30, Minute: 45, DisplayMinute: "45+2'", Type: "goal", Team: match.AwayTeam, Player: stringPtr("Lukebakio"), Timestamp: time.Now()},
+			{ID: 31, Minute: 56, DisplayMinute: "56'", Type: "substitution", Team: match.HomeTeam, Player: stringPtr("Ferran Torres"), EventType: stringPtr("sub_in"), Timestamp: time.Now()},
+			{ID: 32, Minute: 67, DisplayMinute: "67'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Raphinha"), Timestamp: time.Now()},
+			{ID: 33, Minute: 78, DisplayMinute: "78'", Type: "card", Team: match.HomeTeam, Player: stringPtr("Araujo"), EventType: stringPtr("yellow"), Timestamp: time.Now()},
+			{ID: 34, Minute: 90, DisplayMinute: "90+1'", Type: "goal", Team: match.HomeTeam, Player: stringPtr("Lewandowski"), Assist: stringPtr("Yamal"), Timestamp: time.Now()},
 		}
 	}
 

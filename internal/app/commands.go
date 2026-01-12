@@ -355,15 +355,16 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 			}
 
 			goals = append(goals, reddit.GoalInfo{
-				MatchID:    details.ID,
-				HomeTeam:   details.HomeTeam.Name,
-				AwayTeam:   details.AwayTeam.Name,
-				ScorerName: scorer,
-				Minute:     event.Minute,
-				HomeScore:  homeScore,
-				AwayScore:  awayScore,
-				IsHomeTeam: isHome,
-				MatchTime:  matchTime,
+				MatchID:      details.ID,
+				HomeTeam:     details.HomeTeam.Name,
+				AwayTeam:     details.AwayTeam.Name,
+				ScorerName:   scorer,
+				Minute:       event.Minute,
+				DisplayMinute: event.DisplayMinute,
+				HomeScore:    homeScore,
+				AwayScore:    awayScore,
+				IsHomeTeam:   isHome,
+				MatchTime:    matchTime,
 			})
 		}
 
