@@ -851,7 +851,7 @@ func renderLargeScore(homeScore, awayScore int, width int) string {
 	// Use consolidated neon colors from neon_styles.go
 	scoreStyle := lipgloss.NewStyle().Foreground(neonRed).Bold(true)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// Build home score line
 		var homeLine strings.Builder
 		for j, p := range homePatterns {
