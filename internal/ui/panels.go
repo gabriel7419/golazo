@@ -205,15 +205,16 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 	// 1. Status/Minute and League info (centered)
 	infoStyle := lipgloss.NewStyle().Foreground(neonDim)
 	var statusText string
-	if details.Status == api.MatchStatusLive {
+	switch details.Status {
+	case api.MatchStatusLive:
 		liveTime := constants.StatusLive
 		if details.LiveTime != nil {
 			liveTime = *details.LiveTime
 		}
 		statusText = lipgloss.NewStyle().Foreground(neonRed).Bold(true).Render(liveTime)
-	} else if details.Status == api.MatchStatusFinished {
+	case api.MatchStatusFinished:
 		statusText = lipgloss.NewStyle().Foreground(neonCyan).Render(constants.StatusFinished)
-	} else {
+	default:
 		statusText = infoStyle.Render(constants.StatusNotStartedShort)
 	}
 
@@ -375,10 +376,10 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 				cardContent := buildEventContent(playerDetails, "", cardSymbol, cardStyle.Render("CARD"), isHome)
 
 				minuteStr := card.DisplayMinute
-			if minuteStr == "" {
-				minuteStr = fmt.Sprintf("%d'", card.Minute) // Fallback
-			}
-			cardLine := renderCenterAlignedEvent(minuteStr, cardContent, isHome, contentWidth)
+				if minuteStr == "" {
+					minuteStr = fmt.Sprintf("%d'", card.Minute) // Fallback
+				}
+				cardLine := renderCenterAlignedEvent(minuteStr, cardContent, isHome, contentWidth)
 				content.WriteString(cardLine)
 				content.WriteString("\n")
 			}
@@ -478,11 +479,11 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 // extractTeamMarker extracts the [H] or [A] marker from the end of an update string.
 // Returns the cleaned update string (without marker) and whether it's a home team event.
 func extractTeamMarker(update string) (string, bool) {
-	if strings.HasSuffix(update, " [H]") {
-		return strings.TrimSuffix(update, " [H]"), true
+	if before, ok := strings.CutSuffix(update, " [H]"); ok {
+		return before, true
 	}
-	if strings.HasSuffix(update, " [A]") {
-		return strings.TrimSuffix(update, " [A]"), false
+	if before, ok := strings.CutSuffix(update, " [A]"); ok {
+		return before, false
 	}
 	// Default to home if no marker found
 	return update, true
@@ -596,8 +597,8 @@ func extractPlayerAndType(content string, typeMarker string) (string, string) {
 		return "", ""
 	}
 
-	idx := strings.Index(content, typeMarker)
-	if idx == -1 {
+	_, after, ok := strings.Cut(content, typeMarker)
+	if !ok {
 		// Type marker not found, return content after symbol
 		runes := []rune(content)
 		if len(runes) > 1 {
@@ -607,7 +608,7 @@ func extractPlayerAndType(content string, typeMarker string) (string, string) {
 	}
 
 	// Extract player details after the type marker
-	afterType := content[idx+len(typeMarker):]
+	afterType := after
 	return strings.TrimSpace(afterType), typeMarker
 }
 
@@ -850,26 +851,26 @@ func renderLargeScore(homeScore, awayScore int, width int) string {
 	// Use consolidated neon colors from neon_styles.go
 	scoreStyle := lipgloss.NewStyle().Foreground(neonRed).Bold(true)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// Build home score line
-		var homeLine string
+		var homeLine strings.Builder
 		for j, p := range homePatterns {
 			if j > 0 {
-				homeLine += " " // Space between digits
+				homeLine.WriteString(" ") // Space between digits
 			}
-			homeLine += p[i]
+			homeLine.WriteString(p[i])
 		}
 
 		// Build away score line
-		var awayLine string
+		var awayLine strings.Builder
 		for j, p := range awayPatterns {
 			if j > 0 {
-				awayLine += " " // Space between digits
+				awayLine.WriteString(" ") // Space between digits
 			}
-			awayLine += p[i]
+			awayLine.WriteString(p[i])
 		}
 
-		line := homeLine + "  " + dash[i] + "  " + awayLine
+		line := homeLine.String() + "  " + dash[i] + "  " + awayLine.String()
 		lines = append(lines, scoreStyle.Render(line))
 	}
 

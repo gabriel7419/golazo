@@ -18,6 +18,12 @@ import (
 // Used to enhance goal event display with video replay links.
 type GoalLinksMap map[string]string
 
+const (
+	minPanelHeight    = 10
+	minScrollableArea = 3
+	minListHeight     = 3
+)
+
 // MakeGoalLinkKey creates a key for the goal links map.
 func MakeGoalLinkKey(matchID, minute int) string {
 	return fmt.Sprintf("%d:%d", matchID, minute)
@@ -82,10 +88,10 @@ func RenderLiveMatchesListPanel(width, height int, listModel list.Model, upcomin
 	}
 
 	// Calculate available height for the live list
-	availableListHeight := innerHeight - upcomingHeight - 1 // -1 for separator
-	if availableListHeight < 3 {
-		availableListHeight = 3 // Minimum height for list
-	}
+	availableListHeight := max(
+		// -1 for separator
+		innerHeight-upcomingHeight-1,
+		minListHeight)
 
 	// Truncate list view to fit
 	listView = truncateToHeight(listView, availableListHeight)
@@ -290,10 +296,7 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 
 	// Reserve 3 lines at top for spinner (always reserve to prevent layout shift)
 	spinnerHeight := 3
-	availableHeight := height - spinnerHeight
-	if availableHeight < 10 {
-		availableHeight = 10 // Minimum height for panels
-	}
+	availableHeight := max(height-spinnerHeight, minPanelHeight)
 
 	// Render spinner centered in reserved space
 	// ALWAYS use styled approach with explicit height to prevent layout shifts
@@ -324,10 +327,7 @@ func RenderMultiPanelViewWithList(width, height int, listModel list.Model, detai
 	}
 
 	// Calculate panel dimensions
-	leftWidth := width * 35 / 100
-	if leftWidth < 25 {
-		leftWidth = 25
-	}
+	leftWidth := max(width*35/100, 25)
 	rightWidth := width - leftWidth - 1 // -1 for separator
 	if rightWidth < 35 {
 		rightWidth = 35
@@ -385,10 +385,7 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 
 	// Reserve 3 lines at top for spinner (always reserve to prevent layout shift)
 	spinnerHeight := 3
-	availableHeight := height - spinnerHeight
-	if availableHeight < 10 {
-		availableHeight = 10 // Minimum height for panels
-	}
+	availableHeight := max(height-spinnerHeight, minPanelHeight)
 
 	// Render spinner centered in reserved space - match live view exactly
 	// ALWAYS use styled approach with explicit height to prevent layout shifts
@@ -419,10 +416,7 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 	}
 
 	// Calculate panel dimensions - match live view exactly (35% left, 65% right)
-	leftWidth := width * 35 / 100
-	if leftWidth < 25 {
-		leftWidth = 25
-	}
+	leftWidth := max(width*35/100, 25)
 	rightWidth := width - leftWidth - 1 // -1 for separator
 	if rightWidth < 35 {
 		rightWidth = 35
@@ -445,20 +439,14 @@ func RenderStatsViewWithList(width, height int, finishedList list.Model, details
 
 	// Calculate available height for scrolling (reserve space for header)
 	headerHeight := strings.Count(headerContent, "\n") + 1
-	availableHeight = panelHeight - headerHeight
-	if availableHeight < 3 {
-		availableHeight = 3 // Minimum scrollable area
-	}
+	availableHeight = max(panelHeight-headerHeight, minScrollableArea)
 
 	// Apply manual scroll offset when focused, otherwise show beginning of content
 	visibleLines := scrollableLines
 	if rightPanelFocused && len(scrollableLines) > availableHeight {
 		// Show only visible portion based on scroll offset
 		start := scrollOffset
-		end := start + availableHeight
-		if end > len(scrollableLines) {
-			end = len(scrollableLines)
-		}
+		end := min(start+availableHeight, len(scrollableLines))
 		if start < len(scrollableLines) && start >= 0 {
 			visibleLines = scrollableLines[start:end]
 		} else if start >= len(scrollableLines) {
@@ -859,19 +847,13 @@ func renderStatComparison(label, homeVal, awayVal string, maxWidth int) string {
 	}
 
 	// Home bar (right-aligned, grows left)
-	homeFilled := (homeNum * halfBar) / maxVal
-	if homeFilled > halfBar {
-		homeFilled = halfBar
-	}
+	homeFilled := min((homeNum*halfBar)/maxVal, halfBar)
 	homeEmpty := halfBar - homeFilled
 	homeBar := strings.Repeat(" ", homeEmpty) + strings.Repeat("▪", homeFilled)
 	homeBarStyled := lipgloss.NewStyle().Foreground(neonCyan).Render(homeBar)
 
 	// Away bar (left-aligned, grows right)
-	awayFilled := (awayNum * halfBar) / maxVal
-	if awayFilled > halfBar {
-		awayFilled = halfBar
-	}
+	awayFilled := min((awayNum*halfBar)/maxVal, halfBar)
 	awayEmpty := halfBar - awayFilled
 	awayBar := strings.Repeat("▪", awayFilled) + strings.Repeat(" ", awayEmpty)
 	awayBarStyled := lipgloss.NewStyle().Foreground(neonGray).Render(awayBar)
@@ -939,22 +921,14 @@ func formatNumber(n int) string {
 	}
 
 	// Insert commas from right to left
-	result := ""
+	var result strings.Builder
 	for i, c := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {
-			result += ","
+			result.WriteString(",")
 		}
-		result += string(c)
+		result.WriteString(string(c))
 	}
-	return result
-}
-
-// min returns the smaller of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	return result.String()
 }
 
 // truncateToHeight truncates content to fit within maxLines.
