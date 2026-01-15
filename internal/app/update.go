@@ -167,8 +167,23 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 	}
 
 	m.matchDetails = msg.details
-	m.debugLog(fmt.Sprintf("handleMatchDetails: loaded match %d (%s vs %s) with %d events",
-		msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name, len(msg.details.Events)))
+	m.debugLog(fmt.Sprintf("handleMatchDetails: loaded match %d (%s vs %s) with %d events, status=%v",
+		msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name, len(msg.details.Events), msg.details.Status))
+
+	// Debug highlights data
+	if msg.details.Highlight != nil {
+		m.debugLog(fmt.Sprintf("UI: highlights data loaded - URL: %s, Source: %s",
+			msg.details.Highlight.URL, msg.details.Highlight.Source))
+		if msg.details.Highlight.URL != "" {
+			m.debugLog(fmt.Sprintf("UI: highlights should be visible for match %d (%s vs %s)",
+				msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name))
+		} else {
+			m.debugLog("UI: highlights found but URL is empty - won't display")
+		}
+	} else {
+		m.debugLog(fmt.Sprintf("UI: no highlights data for match %d (%s vs %s)",
+			msg.details.ID, msg.details.HomeTeam.Name, msg.details.AwayTeam.Name))
+	}
 
 	// Load any cached goal links for this match into the model
 	// Filter out "__NOT_FOUND__" entries - only load valid replay URLs
@@ -375,6 +390,17 @@ func (m model) handleLiveMatchesSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.loadMatchDetails(targetMatchID)
 	}
 
+	// Handle refresh key (r) to force refresh current match
+	if msg.String() == "r" {
+		m.debugLog(fmt.Sprintf("Live matches refresh key pressed - matchDetails is nil: %v", m.matchDetails == nil))
+		if m.matchDetails != nil {
+			m.debugLog(fmt.Sprintf("Forcing refresh for match ID: %d in live matches view", m.matchDetails.ID))
+			return m.loadMatchDetailsWithRefresh(m.matchDetails.ID, true)
+		} else {
+			m.debugLog("Cannot refresh - no match details currently loaded")
+		}
+	}
+
 	return m, listCmd
 }
 
@@ -481,6 +507,17 @@ func (m model) handleStatsSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m.loadStatsMatchDetails(targetMatchID)
+	}
+
+	// Handle refresh key (r) to force refresh current match
+	if msg.String() == "r" {
+		m.debugLog(fmt.Sprintf("Refresh key pressed - matchDetails is nil: %v", m.matchDetails == nil))
+		if m.matchDetails != nil {
+			m.debugLog(fmt.Sprintf("Forcing refresh for match ID: %d", m.matchDetails.ID))
+			return m.loadStatsMatchDetailsWithRefresh(m.matchDetails.ID, true)
+		} else {
+			m.debugLog("Cannot refresh - no match details currently loaded")
+		}
 	}
 
 	return m, listCmd

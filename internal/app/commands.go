@@ -161,6 +161,27 @@ func fetchMatchDetails(client *fotmob.Client, matchID int, useMockData bool) tea
 	}
 }
 
+// fetchMatchDetailsForceRefresh fetches match details with cache bypass.
+// Forces fresh data from the API, ignoring any cached data.
+func fetchMatchDetailsForceRefresh(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
+	return func() tea.Msg {
+		if useMockData {
+			details, _ := data.MockMatchDetails(matchID)
+			return matchDetailsMsg{details: details}
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		details, err := client.MatchDetailsForceRefresh(ctx, matchID)
+		if err != nil {
+			return matchDetailsMsg{details: nil}
+		}
+
+		return matchDetailsMsg{details: details}
+	}
+}
+
 // schedulePollTick schedules the next poll after 90 seconds.
 // When the tick fires, it sends pollTickMsg which triggers the actual API call.
 func schedulePollTick(matchID int) tea.Cmd {

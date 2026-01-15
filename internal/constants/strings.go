@@ -28,9 +28,9 @@ const (
 // Help text
 const (
 	HelpMainMenu     = "↑/↓: navigate  Enter: select  q: quit"
-	HelpMatchesView  = "↑/↓: navigate  /: filter  Esc: back  q: quit"
+	HelpMatchesView  = "↑/↓: navigate  r: refresh details  /: filter  Esc: back  q: quit"
 	HelpSettingsView = "↑/↓: navigate  Space: toggle  /: filter  Enter: save  Esc: back"
-	HelpStatsView    = "h/l: date range  j/k: navigate  Tab: focus details  ↑/↓: scroll when focused  /: filter  Esc: back"
+	HelpStatsView    = "h/l: date range  j/k: navigate  Tab: focus details  ↑/↓: scroll when focused  r: refresh details  /: filter  Esc: back"
 )
 
 // Status text

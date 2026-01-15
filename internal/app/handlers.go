@@ -169,6 +169,11 @@ func (m model) handleStatsViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // loadMatchDetails loads match details for the live matches view.
 // Resets live updates and event history before fetching new details.
 func (m model) loadMatchDetails(matchID int) (tea.Model, tea.Cmd) {
+	return m.loadMatchDetailsWithRefresh(matchID, false)
+}
+
+// loadMatchDetailsWithRefresh loads match details for the live matches view with optional cache bypass.
+func (m model) loadMatchDetailsWithRefresh(matchID int, forceRefresh bool) (tea.Model, tea.Cmd) {
 	m.liveUpdates = nil
 	m.lastEvents = nil
 	m.lastHomeScore = 0
@@ -176,19 +181,38 @@ func (m model) loadMatchDetails(matchID int) (tea.Model, tea.Cmd) {
 	m.loading = true
 	m.liveViewLoading = true
 	m.polling = false // Reset polling state - this is a new match load, not a poll refresh
-	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchMatchDetails(m.fotmobClient, matchID, m.useMockData))
+
+	var cmd tea.Cmd
+	if forceRefresh {
+		cmd = fetchMatchDetailsForceRefresh(m.fotmobClient, matchID, m.useMockData)
+	} else {
+		cmd = fetchMatchDetails(m.fotmobClient, matchID, m.useMockData)
+	}
+
+	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), cmd)
 }
 
 // loadStatsMatchDetails loads match details for the stats view.
 // Checks cache first to avoid redundant API calls.
 func (m model) loadStatsMatchDetails(matchID int) (tea.Model, tea.Cmd) {
-	m.debugLog(fmt.Sprintf("Loading match details for ID: %d", matchID))
+	return m.loadStatsMatchDetailsWithRefresh(matchID, false)
+}
 
-	// Return cached details if available
-	if cached, ok := m.matchDetailsCache[matchID]; ok {
-		m.matchDetails = cached
-		m.debugLog(fmt.Sprintf("Using cached match details for ID: %d", matchID))
-		return m, nil
+// loadStatsMatchDetailsWithRefresh loads match details with optional cache bypass.
+func (m model) loadStatsMatchDetailsWithRefresh(matchID int, forceRefresh bool) (tea.Model, tea.Cmd) {
+	m.debugLog(fmt.Sprintf("Loading match details for ID: %d (forceRefresh: %v)", matchID, forceRefresh))
+
+	// Check cache unless force refresh is requested
+	if !forceRefresh {
+		if cached, ok := m.matchDetailsCache[matchID]; ok {
+			m.matchDetails = cached
+			m.debugLog(fmt.Sprintf("Using cached match details for ID: %d", matchID))
+			return m, nil
+		}
+	} else {
+		// Clear from cache to force fresh fetch
+		delete(m.matchDetailsCache, matchID)
+		m.debugLog(fmt.Sprintf("Cleared cache for match ID: %d", matchID))
 	}
 
 	// Fetch from API
