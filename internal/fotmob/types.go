@@ -148,6 +148,11 @@ type fotmobMatchDetails struct {
 			Events struct {
 				Events []fotmobEventDetail `json:"events"`
 			} `json:"events"`
+			Highlights *struct {
+				URL    string `json:"url"`
+				Image  string `json:"image,omitempty"`
+				Source string `json:"source,omitempty"`
+			} `json:"highlights,omitempty"`
 			InfoBox struct {
 				Stadium struct {
 					Name string `json:"name"`
@@ -378,6 +383,15 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 
 	// Parse lineup information
 	m.parseLineups(details)
+
+	// Parse highlight video if available
+	if m.Content.MatchFacts.Highlights != nil {
+		details.Highlight = &api.MatchHighlight{
+			URL:    m.Content.MatchFacts.Highlights.URL,
+			Image:  m.Content.MatchFacts.Highlights.Image,
+			Source: m.Content.MatchFacts.Highlights.Source,
+		}
+	}
 
 	// Convert events from content.matchFacts.events
 	events := make([]api.MatchEvent, 0, len(m.Content.MatchFacts.Events.Events))

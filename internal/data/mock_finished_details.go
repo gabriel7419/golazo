@@ -28,14 +28,21 @@ func MockFinishedMatchDetails(matchID int) (*api.MatchDetails, error) {
 	events := generateFinishedMatchEvents(matchID, *match)
 	stats := generateMockStatistics(matchID)
 
-	return &api.MatchDetails{
+	details := &api.MatchDetails{
 		Match:      *match,
 		Events:     events,
 		Statistics: stats,
 		Venue:      getMockVenue(matchID),
 		Referee:    getMockReferee(matchID),
 		Attendance: getMockAttendance(matchID),
-	}, nil
+	}
+
+	// Add mock highlights for some matches to demonstrate the feature
+	if highlight := getMockHighlight(matchID); highlight != nil {
+		details.Highlight = highlight
+	}
+
+	return details, nil
 }
 
 // generateFinishedMatchEvents generates comprehensive events for finished matches.
@@ -162,4 +169,27 @@ func generateFinishedMatchEvents(matchID int, match api.Match) []api.MatchEvent 
 	}
 
 	return events
+}
+
+// getMockHighlight returns mock highlight data for testing the highlights feature.
+// Only some matches have highlights to simulate real-world availability.
+func getMockHighlight(matchID int) *api.MatchHighlight {
+	switch matchID {
+	case 1001: // Man City 2-1 Arsenal (finished with highlights)
+		return &api.MatchHighlight{
+			URL:    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+			Image:  "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+			Source: "www.youtube.com",
+			Title:  "Man City 2-1 Arsenal | Premier League Highlights",
+		}
+	case 1005: // PSG 2-3 Bayern (Champions League highlights)
+		return &api.MatchHighlight{
+			URL:    "https://www.youtube.com/watch?v=example123",
+			Image:  "https://i.ytimg.com/vi/example123/maxresdefault.jpg",
+			Source: "www.youtube.com",
+			Title:  "PSG 2-3 Bayern | Champions League Highlights",
+		}
+	default:
+		return nil // No highlights available for this match
+	}
 }

@@ -254,7 +254,7 @@ func renderMatchDetailsPanelFull(width, height int, details *api.MatchDetails, l
 			Render("vs")
 		content.WriteString(vsText)
 	}
-	content.WriteString("\n\n")
+	content.WriteString("\n")
 
 	// For finished matches, show detailed match information
 	// For live matches, show live updates

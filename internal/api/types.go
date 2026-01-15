@@ -47,9 +47,9 @@ type Match struct {
 // MatchEvent represents an event in a match (goal, card, substitution, etc.)
 type MatchEvent struct {
 	ID            int       `json:"id"`
-	Minute        int       `json:"minute"`        // Base minute (e.g., 45)
+	Minute        int       `json:"minute"`                   // Base minute (e.g., 45)
 	DisplayMinute string    `json:"display_minute,omitempty"` // Formatted minute with stoppage time (e.g., "45+2'")
-	Type          string    `json:"type"`          // "goal", "card", "substitution", etc.
+	Type          string    `json:"type"`                     // "goal", "card", "substitution", etc.
 	Team          Team      `json:"team"`
 	Player        *string   `json:"player,omitempty"`
 	Assist        *string   `json:"assist,omitempty"`
@@ -117,6 +117,17 @@ type MatchDetails struct {
 	// Momentum/xG data (if available)
 	HomeXG *float64 `json:"home_xg,omitempty"` // Expected goals for home team
 	AwayXG *float64 `json:"away_xg,omitempty"` // Expected goals for away team
+
+	// Highlight video (if available)
+	Highlight *MatchHighlight `json:"highlight,omitempty"` // Official highlight video link
+}
+
+// MatchHighlight represents an official highlight video for a match
+type MatchHighlight struct {
+	URL    string `json:"url"`              // Direct link to highlight video
+	Image  string `json:"image,omitempty"`  // Thumbnail image URL
+	Source string `json:"source,omitempty"` // Video source (e.g., "www.youtube.com")
+	Title  string `json:"title,omitempty"`  // Video title (optional)
 }
 
 // LeagueTableEntry represents a team's position in the league table

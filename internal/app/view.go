@@ -1,12 +1,20 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/0xjuanma/golazo/internal/reddit"
 	"github.com/0xjuanma/golazo/internal/ui"
 )
 
 // View renders the current application state.
 func (m model) View() string {
+	// DEBUG: Log that view is being called
+	m.debugLog(fmt.Sprintf("VIEW: View() called, currentView=%v, width=%d, height=%d, matchDetails=%v", m.currentView, m.width, m.height, m.matchDetails != nil))
+	if m.matchDetails != nil {
+		m.debugLog(fmt.Sprintf("VIEW: matchDetails ID=%d, Status=%s, Highlights=%v", m.matchDetails.ID, m.matchDetails.Status, m.matchDetails.Highlight != nil))
+	}
+
 	switch m.currentView {
 	case viewMain:
 		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading, m.getStatusBannerType())

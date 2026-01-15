@@ -627,6 +627,20 @@ func renderStatsMatchDetailsPanel(width, height int, details *api.MatchDetails, 
 	}
 
 	// ═══════════════════════════════════════════════
+	// HIGHLIGHTS - Official match highlights if available
+	// ═══════════════════════════════════════════════
+	if details.Highlight != nil && details.Highlight.URL != "" {
+		scrollableLines = append(scrollableLines, "")
+
+		// Create hyperlink for the highlight URL
+		highlightLink := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(
+			Hyperlink("▶ Official Match Highlights", details.Highlight.URL),
+		)
+
+		scrollableLines = append(scrollableLines, neonValueStyle.Render(highlightLink))
+	}
+
+	// ═══════════════════════════════════════════════
 	// GOALS TIMELINE (chronological with home/away alignment)
 	// ═══════════════════════════════════════════════
 	var goals []api.MatchEvent
