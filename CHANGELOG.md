@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Light Terminal Support** - Colors now automatically adapt to light terminal themes for improved visibility
 
 ## [0.15.0] - 2026-01-14
 
