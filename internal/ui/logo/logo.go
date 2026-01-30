@@ -128,16 +128,7 @@ func Render(version string, compact bool, o Opts) string {
 
 // RenderCompact renders a smaller inline version suitable for headers.
 func RenderCompact(width int) string {
-	startHex, endHex := design.AdaptiveGradientColors()
-	title := applyLineGradient("GOLAZO", startHex, endHex)
-
-	remainingWidth := width - lipgloss.Width("GOLAZO") - 2
-	if remainingWidth > 0 {
-		lines := strings.Repeat(diag, remainingWidth)
-		styledLines := lipgloss.NewStyle().Foreground(lipgloss.Color(startHex)).Render(lines)
-		title = fmt.Sprintf("%s %s", title, styledLines)
-	}
-	return title
+	return design.RenderHeader("GOLAZO", width)
 }
 
 // applyLineGradient applies a gradient to a single line of text.

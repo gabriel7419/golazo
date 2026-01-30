@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xjuanma/golazo/internal/api"
 	"github.com/0xjuanma/golazo/internal/constants"
+	"github.com/0xjuanma/golazo/internal/ui/design"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -124,25 +125,12 @@ func renderUpcomingMatchLine(match MatchDisplay, maxWidth int) string {
 
 // RenderStatsListPanel renders the left panel for stats view.
 func RenderStatsListPanel(width, height int, finishedList list.Model, dateRange int, rightPanelFocused bool) string {
+	// Use compact header with diagonal fill, dim when right panel is focused
 	var header string
 	if rightPanelFocused {
-		header = lipgloss.NewStyle().
-			Foreground(neonDim).
-			Bold(true).
-			PaddingBottom(0).
-			BorderBottom(true).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(neonDim).
-			MarginBottom(0).
-			Render(constants.PanelMatchList)
+		header = design.RenderHeaderDim(constants.PanelMatchList, width-6)
 	} else {
-		header = neonHeaderStyle.
-			PaddingBottom(0).
-			BorderBottom(true).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(neonDim).
-			MarginBottom(0).
-			Render(constants.PanelMatchList)
+		header = design.RenderHeader(constants.PanelMatchList, width-6)
 	}
 
 	dateSelector := renderDateRangeSelector(width-6, dateRange)
