@@ -19,7 +19,7 @@ const (
 	// Tick interval to simulate the app's tick rate
 	tickInterval = 70 * time.Millisecond
 	// Pause between animations
-	pauseBetween = 1 * time.Second
+	pauseBetween = 2 * time.Second
 )
 
 func main() {
@@ -29,8 +29,8 @@ func main() {
 	fmt.Println("╔════════════════════════════════════════════════════════════════════════════════╗")
 	fmt.Println("║                    GOLAZO Logo Animation Test                                  ║")
 	fmt.Println("║                                                                                ║")
-	fmt.Println("║  This script demonstrates all available animation styles.                     ║")
-	fmt.Println("║  Each animation will play once, then move to the next.                        ║")
+	fmt.Println("║  This script demonstrates all available animation styles.                      ║")
+	fmt.Println("║  Each animation will play once, then move to the next.                         ║")
 	fmt.Println("╚════════════════════════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 
@@ -44,7 +44,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("╔════════════════════════════════════════════════════════════════════════════════╗")
-	fmt.Println("║                         All animations complete!                              ║")
+	fmt.Println("║                         All animations complete!                               ║")
 	fmt.Println("╚════════════════════════════════════════════════════════════════════════════════╝")
 }
 
