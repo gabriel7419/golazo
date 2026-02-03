@@ -80,6 +80,7 @@ Golazo supports **60+ leagues and competitions**. Customize your selection in Se
 | 🇧🇷 | Brasileirão Série B |
 | 🇧🇷 | Copa do Brasil |
 | 🇧🇷 | Supercopa do Brasil |
+| 🇧🇷 | Campeonato Carioca |
 | 🇧🇷 | Campeonato Gaúcho |
 | 🇨🇱 | Primera Division |
 | 🇨🇴 | Copa Colombia |
