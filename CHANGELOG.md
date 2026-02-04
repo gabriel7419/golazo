@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **German League** - Added support for Regionalliga
 
 ### Changed
+- **Code Quality** - Improved code quality by addressing golangci-lint recommendations (Thanks @rober0xf!)
 
 ### Fixed
 
