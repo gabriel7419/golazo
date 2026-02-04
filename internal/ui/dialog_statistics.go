@@ -47,9 +47,7 @@ func (d *StatisticsDialog) Update(msg tea.Msg) (Dialog, DialogAction) {
 			return d, DialogActionClose{}
 		case "j", "down":
 			maxScroll := len(d.statistics) - d.maxVisible
-			if maxScroll < 0 {
-				maxScroll = 0
-			}
+			maxScroll = max(maxScroll, 0)
 			if d.scrollIndex < maxScroll {
 				d.scrollIndex++
 			}
@@ -92,9 +90,7 @@ func (d *StatisticsDialog) renderContent(width int) string {
 
 	// Calculate visible range
 	endIdx := d.scrollIndex + d.maxVisible
-	if endIdx > len(d.statistics) {
-		endIdx = len(d.statistics)
-	}
+	endIdx = min(endIdx, len(d.statistics))
 
 	// Render visible statistics
 	for i := d.scrollIndex; i < endIdx; i++ {

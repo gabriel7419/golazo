@@ -261,9 +261,7 @@ func (c *Client) GoalLinks(goals []GoalInfo) map[GoalLinkKey]*GoalLink {
 
 		// Process batch
 		end := i + BatchSize
-		if end > len(uncachedGoals) {
-			end = len(uncachedGoals)
-		}
+		end = min(end, len(uncachedGoals))
 
 		for _, goal := range uncachedGoals[i:end] {
 			key := GoalLinkKey{MatchID: goal.MatchID, Minute: goal.Minute}
@@ -283,7 +281,7 @@ func (c *Client) searchForGoal(goal GoalInfo) (*GoalLink, error) {
 	maxRetries := 2               // Reduced from 3
 	baseDelay := 60 * time.Second // Increased delay between retries
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
 			// Exponential backoff: 30s, 60s, 120s
 			delay := time.Duration(attempt) * baseDelay

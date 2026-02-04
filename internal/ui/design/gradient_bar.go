@@ -96,7 +96,7 @@ func RenderGradientBar(cfg GradientBarConfig) string {
 
 	// Build home side bar with gradient (left to center)
 	var homeBar strings.Builder
-	for i := 0; i < halfWidth; i++ {
+	for i := range halfWidth {
 		ratio := float64(i) / float64(halfWidth-1)
 		midColor := startColor.BlendLab(endColor, ratio*0.5) // Blend to middle
 		hexColor := midColor.Hex()
@@ -112,7 +112,7 @@ func RenderGradientBar(cfg GradientBarConfig) string {
 
 	// Build away side bar with gradient (center to right)
 	var awayBar strings.Builder
-	for i := 0; i < halfWidth; i++ {
+	for i := range halfWidth {
 		ratio := 0.5 + (float64(i) / float64(halfWidth-1) * 0.5) // 0.5 to 1.0
 		midColor := startColor.BlendLab(endColor, ratio)
 		hexColor := midColor.Hex()
@@ -138,12 +138,10 @@ func RenderSimpleGradientBar(value float64, width int) string {
 	endColor, _ := colorful.Hex(endHex)
 
 	filledWidth := int(value * float64(width))
-	if filledWidth > width {
-		filledWidth = width
-	}
+	filledWidth = min(filledWidth, width)
 
 	var result strings.Builder
-	for i := 0; i < width; i++ {
+	for i := range width {
 		ratio := float64(i) / float64(width-1)
 		color := startColor.BlendLab(endColor, ratio)
 		hexColor := color.Hex()

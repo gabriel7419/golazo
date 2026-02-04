@@ -65,7 +65,7 @@ func Render(version string, compact bool, o Opts) string {
 
 	// Apply gradient to the title
 	b := new(strings.Builder)
-	for _, line := range strings.Split(golazo, "\n") {
+	for line := range strings.SplitSeq(golazo, "\n") {
 		if line != "" {
 			b.WriteString(applyLineGradient(line, o.GradientStartHex, o.GradientEndHex))
 		}

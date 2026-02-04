@@ -3,6 +3,7 @@ package data
 import (
 	"os"
 	"path/filepath"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 )
@@ -233,12 +234,7 @@ func AllLeagueIDs() []int {
 
 // IsLeagueSelected checks if a league ID is in the selected list.
 func (s *Settings) IsLeagueSelected(leagueID int) bool {
-	for _, id := range s.SelectedLeagues {
-		if id == leagueID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.SelectedLeagues, leagueID)
 }
 
 // GetAllRegions returns a list of all available regions in order.

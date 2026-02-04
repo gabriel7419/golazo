@@ -147,7 +147,7 @@ type fotmobMatchDetails struct {
 		MatchFacts struct {
 			Events struct {
 				Events                []fotmobEventDetail `json:"events"`
-				PenaltyShootoutEvents interface{}         `json:"penaltyShootoutEvents,omitempty"`
+				PenaltyShootoutEvents any                 `json:"penaltyShootoutEvents,omitempty"`
 			} `json:"events"`
 			Highlights *struct {
 				URL    string `json:"url"`
@@ -187,11 +187,11 @@ type fotmobStatCategory struct {
 
 // fotmobStatItem represents a single statistic item
 type fotmobStatItem struct {
-	Key       string        `json:"key"`
-	Title     string        `json:"title"`
-	Stats     []interface{} `json:"stats"` // [homeValue, awayValue] - can be int, float, or string
-	Type      string        `json:"type,omitempty"`
-	Highlight string        `json:"highlight,omitempty"` // "home" or "away" for who's better
+	Key       string `json:"key"`
+	Title     string `json:"title"`
+	Stats     []any  `json:"stats"` // [homeValue, awayValue] - can be int, float, or string
+	Type      string `json:"type,omitempty"`
+	Highlight string `json:"highlight,omitempty"` // "home" or "away" for who's better
 }
 
 // fotmobTeamLineup represents a team's lineup (legacy format)
@@ -240,11 +240,11 @@ type fotmobPlayerInfo struct {
 
 // fotmobEventDetail represents a single event detail from FotMob
 type fotmobEventDetail struct {
-	Time    int         `json:"time"`
-	TimeStr interface{} `json:"timeStr"` // Can be int or string
-	Type    string      `json:"type"`
-	EventID int         `json:"eventId"`
-	IsHome  bool        `json:"isHome"`
+	Time    int    `json:"time"`
+	TimeStr any    `json:"timeStr"` // Can be int or string
+	Type    string `json:"type"`
+	EventID int    `json:"eventId"`
+	IsHome  bool   `json:"isHome"`
 	Player  *struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
@@ -418,11 +418,11 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 
 	// Parse penalty shootout results if available
 	if m.Content.MatchFacts.Events.PenaltyShootoutEvents != nil {
-		if penaltyEvents, ok := m.Content.MatchFacts.Events.PenaltyShootoutEvents.([]interface{}); ok && len(penaltyEvents) > 0 {
+		if penaltyEvents, ok := m.Content.MatchFacts.Events.PenaltyShootoutEvents.([]any); ok && len(penaltyEvents) > 0 {
 			// Get the final penalty scores from the last event
 			lastEvent := penaltyEvents[len(penaltyEvents)-1]
-			if eventMap, ok := lastEvent.(map[string]interface{}); ok {
-				if penShootoutScore, exists := eventMap["penShootoutScore"].([]interface{}); exists && len(penShootoutScore) >= 2 {
+			if eventMap, ok := lastEvent.(map[string]any); ok {
+				if penShootoutScore, exists := eventMap["penShootoutScore"].([]any); exists && len(penShootoutScore) >= 2 {
 					if homeScoreFloat, ok := penShootoutScore[0].(float64); ok {
 						homeScore := int(homeScoreFloat)
 						if awayScoreFloat, ok := penShootoutScore[1].(float64); ok {
@@ -585,7 +585,7 @@ func (m fotmobMatchDetails) parseStatistics() []api.MatchStatistic {
 }
 
 // formatStatValue converts a stat value (can be int, float, or string) to string
-func formatStatValue(val interface{}) string {
+func formatStatValue(val any) string {
 	switch v := val.(type) {
 	case string:
 		return v

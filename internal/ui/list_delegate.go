@@ -203,7 +203,7 @@ func (d LeagueListDelegate) HighlightMatches(text, filterValue string) string {
 		matchIndex := -1
 		for i := lastIndex; i <= len(textRunes)-len(filterRunes); i++ {
 			match := true
-			for j := 0; j < len(filterRunes); j++ {
+			for j := range len(filterRunes) {
 				if !strings.EqualFold(string(textRunes[i+j]), string(filterRunes[j])) {
 					match = false
 					break

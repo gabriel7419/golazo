@@ -50,7 +50,7 @@ func (c *Client) StatsData(ctx context.Context) (*StatsData, error) {
 	successCount := 0
 
 	// Fetch 5 days of matches (today + last 4 days)
-	for i := 0; i < StatsDataDays; i++ {
+	for i := range StatsDataDays {
 		date := today.AddDate(0, 0, -i)
 		dateStr := date.Format("2006-01-02")
 		isToday := dateStr == todayStr

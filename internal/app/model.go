@@ -196,7 +196,7 @@ func New(useMockData bool, debugMode bool, isDevBuild bool, newVersionAvailable 
 				f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err == nil {
 					defer f.Close()
-					f.WriteString(fmt.Sprintf("%s %s\n", time.Now().Format("2006-01-02 15:04:05"), message))
+					fmt.Fprintf(f, "%s %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
 				}
 			}
 		})

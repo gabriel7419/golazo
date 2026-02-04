@@ -21,7 +21,7 @@ const (
 
 // FetchLeagueData fetches raw API response and converts to matches for a specific league, date, and tab.
 // Supports optional season parameter for historical data (e.g., "2022" for World Cup 2022).
-func FetchLeagueData(ctx context.Context, leagueID int, date time.Time, tab string, season string) (map[string]interface{}, []api.Match, error) {
+func FetchLeagueData(ctx context.Context, leagueID int, date time.Time, tab string, season string) (map[string]any, []api.Match, error) {
 	url := fmt.Sprintf("%s/leagues?id=%d&tab=%s", baseURL, leagueID, tab)
 	if season != "" {
 		url += "&season=" + season
@@ -51,7 +51,7 @@ func FetchLeagueData(ctx context.Context, leagueID int, date time.Time, tab stri
 	}
 
 	// Parse as raw JSON for display
-	var rawResponse map[string]interface{}
+	var rawResponse map[string]any
 	if err := json.Unmarshal(body, &rawResponse); err != nil {
 		return nil, nil, fmt.Errorf("parse json: %w", err)
 	}
@@ -64,7 +64,7 @@ func FetchLeagueData(ctx context.Context, leagueID int, date time.Time, tab stri
 }
 
 // FetchMatchDetails fetches raw match details and converts to MatchDetails struct.
-func FetchMatchDetails(ctx context.Context, matchID int) (map[string]interface{}, *api.MatchDetails, error) {
+func FetchMatchDetails(ctx context.Context, matchID int) (map[string]any, *api.MatchDetails, error) {
 	url := fmt.Sprintf("%s/matchDetails?matchId=%d", baseURL, matchID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -91,7 +91,7 @@ func FetchMatchDetails(ctx context.Context, matchID int) (map[string]interface{}
 	}
 
 	// Parse as raw JSON for display
-	var rawResponse map[string]interface{}
+	var rawResponse map[string]any
 	if err := json.Unmarshal(body, &rawResponse); err != nil {
 		return nil, nil, fmt.Errorf("parse json: %w", err)
 	}

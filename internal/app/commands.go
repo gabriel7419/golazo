@@ -51,9 +51,7 @@ func fetchLiveBatchData(client *fotmob.Client, useMockData bool, batchIndex int)
 		totalLeagues := fotmob.TotalLeagues()
 		startIdx := batchIndex * LiveBatchSize
 		endIdx := startIdx + LiveBatchSize
-		if endIdx > totalLeagues {
-			endIdx = totalLeagues
-		}
+		endIdx = min(endIdx, totalLeagues)
 		isLast := endIdx >= totalLeagues
 
 		if useMockData {
@@ -376,16 +374,16 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 			}
 
 			goals = append(goals, reddit.GoalInfo{
-				MatchID:      details.ID,
-				HomeTeam:     details.HomeTeam.Name,
-				AwayTeam:     details.AwayTeam.Name,
-				ScorerName:   scorer,
-				Minute:       event.Minute,
+				MatchID:       details.ID,
+				HomeTeam:      details.HomeTeam.Name,
+				AwayTeam:      details.AwayTeam.Name,
+				ScorerName:    scorer,
+				Minute:        event.Minute,
 				DisplayMinute: event.DisplayMinute,
-				HomeScore:    homeScore,
-				AwayScore:    awayScore,
-				IsHomeTeam:   isHome,
-				MatchTime:    matchTime,
+				HomeScore:     homeScore,
+				AwayScore:     awayScore,
+				IsHomeTeam:    isHome,
+				MatchTime:     matchTime,
 			})
 		}
 
@@ -444,5 +442,3 @@ func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, home
 		}
 	}
 }
-
-

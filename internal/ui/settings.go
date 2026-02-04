@@ -218,9 +218,7 @@ func RenderSettingsView(width, height int, state *SettingsState, bannerType cons
 
 	listWidth := settingsBoxWidth
 	listHeight := height - titleHeight - tabsHeight - infoHeight - helpHeight - extraPadding
-	if listHeight < 5 {
-		listHeight = 5
-	}
+	listHeight = max(listHeight, 5)
 
 	// Update list dimensions
 	state.List.SetSize(listWidth, listHeight)
