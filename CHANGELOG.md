@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Brazilian Leagues** - Added support for Copa do Nordeste and Campeonato Goiano (Thanks @gabriel7419!)
 
 ### Changed
+- **Code Quality** - Resolved all golangci-lint warnings (errcheck, staticcheck, unused)
 
 ### Fixed
 
