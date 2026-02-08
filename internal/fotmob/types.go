@@ -140,8 +140,9 @@ type fotmobMatchDetails struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"awayTeam"`
-		LeagueID   int    `json:"leagueId"`
-		LeagueName string `json:"leagueName"`
+		LeagueID       int    `json:"leagueId"`
+		LeagueName     string `json:"leagueName"`
+		ParentLeagueID int    `json:"parentLeagueId"` // Parent league ID for sub-season leagues
 	} `json:"general"`
 	Content struct {
 		MatchFacts struct {
@@ -306,8 +307,9 @@ func (m fotmobMatchDetails) toAPIMatchDetails() *api.MatchDetails {
 	baseMatch := api.Match{
 		ID: matchID,
 		League: api.League{
-			ID:   m.General.LeagueID,
-			Name: m.General.LeagueName,
+			ID:             m.General.LeagueID,
+			Name:           m.General.LeagueName,
+			ParentLeagueID: m.General.ParentLeagueID,
 		},
 		HomeTeam: api.Team{
 			ID:        m.General.HomeTeam.ID,

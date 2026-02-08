@@ -476,6 +476,7 @@ func (m model) handleStatsSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.fotmobClient,
 					m.matchDetails.League.ID,
 					m.matchDetails.League.Name,
+					m.matchDetails.League.ParentLeagueID,
 					m.matchDetails.HomeTeam.ID,
 					m.matchDetails.AwayTeam.ID,
 				)

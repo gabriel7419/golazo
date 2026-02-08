@@ -377,7 +377,9 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 
 // fetchStandings fetches league standings for a specific league.
 // Used to populate the standings dialog.
-func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, homeTeamID, awayTeamID int) tea.Cmd {
+// parentLeagueID is used for multi-season leagues (e.g., Liga MX Clausura -> Liga MX)
+// where the sub-league ID has no standings but the parent league does.
+func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, parentLeagueID int, homeTeamID, awayTeamID int) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
 			return standingsMsg{leagueID: leagueID, standings: nil}
@@ -386,7 +388,7 @@ func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, home
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		standings, err := client.LeagueTable(ctx, leagueID, leagueName)
+		standings, err := client.LeagueTableWithParent(ctx, leagueID, leagueName, parentLeagueID)
 		if err != nil {
 			return standingsMsg{leagueID: leagueID, standings: nil}
 		}

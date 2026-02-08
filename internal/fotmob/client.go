@@ -458,12 +458,34 @@ func getParentLeagueID(leagueName string, leagueID int) int {
 
 // LeagueTable retrieves the league table/standings for a specific league.
 // Handles both regular league tables and knockout competition tables (e.g., Champions League).
-// Uses league name to detect parent leagues for knockout competitions.
+// Uses parentLeagueID (from FotMob match details) when available, then falls back to
+// league name pattern matching for knockout competitions.
+// Multi-season leagues (e.g., Liga MX, Liga Profesional) have sub-league IDs per season
+// that don't have standings — the parentLeagueID points to the main league that does.
 func (c *Client) LeagueTable(ctx context.Context, leagueID int, leagueName string) ([]api.LeagueTableEntry, error) {
-	// First, determine the effective league ID (may be parent for knockout competitions)
+	// Determine the effective league ID for standings lookup.
+	// Priority: parentLeagueID from match details > name pattern matching > original ID
 	effectiveID := getParentLeagueID(leagueName, leagueID)
 
 	// Fetch standings using the effective league ID
+	return c.fetchLeagueTable(ctx, effectiveID)
+}
+
+// LeagueTableWithParent retrieves the league table/standings, using the parent league ID
+// when available. This is the preferred method when match details provide a parentLeagueId.
+// Multi-season leagues (e.g., Liga MX Clausura, Liga Profesional Apertura) return sub-league
+// IDs in match details that have no standings — the parentLeagueID points to the main league.
+func (c *Client) LeagueTableWithParent(ctx context.Context, leagueID int, leagueName string, parentLeagueID int) ([]api.LeagueTableEntry, error) {
+	effectiveID := leagueID
+
+	// Use parentLeagueID if it differs from leagueID (indicates a sub-season league)
+	if parentLeagueID > 0 && parentLeagueID != leagueID {
+		effectiveID = parentLeagueID
+	} else {
+		// Fall back to name-based parent league detection for knockout competitions
+		effectiveID = getParentLeagueID(leagueName, leagueID)
+	}
+
 	return c.fetchLeagueTable(ctx, effectiveID)
 }
 
@@ -491,9 +513,12 @@ func (c *Client) fetchLeagueTable(ctx context.Context, leagueID int) ([]api.Leag
 		return nil, fmt.Errorf("unexpected status code %d for league %d table", resp.StatusCode, leagueID)
 	}
 
-	// FotMob returns table at either:
-	// - Regular leagues: table[0].data.table.all[]
-	// - Knockout competitions (e.g., Champions League): table[0].data.tables[0].table.all[]
+	// FotMob returns table data in several formats:
+	// 1. Regular leagues (EPL, La Liga): table[0].data.table.all[]
+	// 2. Knockout competitions (Champions League): table[0].data.tables[0].table.all[]
+	// 3. Multi-season leagues (Liga MX, Liga Profesional): table[0].data.tables[] with
+	//    multiple sub-tables (e.g., Clausura + Apertura, or Group A + Group B).
+	//    The first sub-table is typically the current/most relevant season.
 	var response struct {
 		Table []struct {
 			Data struct {
@@ -501,11 +526,16 @@ func (c *Client) fetchLeagueTable(ctx context.Context, leagueID int) ([]api.Leag
 				Table struct {
 					All []fotmobTableRow `json:"all"`
 				} `json:"table"`
-				// Knockout competition tables (e.g., Champions League)
+				// Multi-table format: knockout competitions and multi-season leagues
+				// Examples:
+				//   - Champions League: single table with all teams
+				//   - Liga MX: Clausura + Apertura tables
+				//   - Liga Profesional: Apertura Group A + Group B tables
 				Tables []struct {
 					Table struct {
 						All []fotmobTableRow `json:"all"`
 					} `json:"table"`
+					LeagueName string `json:"leagueName"` // e.g., "Clausura", "Apertura - Group A"
 				} `json:"tables"`
 			} `json:"data"`
 		} `json:"table"`
@@ -515,16 +545,22 @@ func (c *Client) fetchLeagueTable(ctx context.Context, leagueID int) ([]api.Leag
 		return nil, fmt.Errorf("decode league table response for league %d: %w", leagueID, err)
 	}
 
-	// Extract table rows - try regular format first, then knockout format
+	// Extract table rows - try regular format first, then multi-table format
 	var tableData []fotmobTableRow
 	if len(response.Table) > 0 {
 		data := response.Table[0].Data
-		// Try regular league format first
+		// Try regular league format first (single table with all teams)
 		if len(data.Table.All) > 0 {
 			tableData = data.Table.All
-		} else if len(data.Tables) > 0 && len(data.Tables[0].Table.All) > 0 {
-			// Fall back to knockout competition format
-			tableData = data.Tables[0].Table.All
+		} else if len(data.Tables) > 0 {
+			// Multi-table format: use first sub-table (current/most relevant season)
+			// This covers both knockout competitions and multi-season leagues
+			for _, subTable := range data.Tables {
+				if len(subTable.Table.All) > 0 {
+					tableData = subTable.Table.All
+					break
+				}
+			}
 		}
 	}
 
